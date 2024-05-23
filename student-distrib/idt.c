@@ -23,88 +23,103 @@
 #define INIT_SYSTEMCALL(i, entry) INIT_IDT_PRESENT(i, 3, 1, entry)
 
 void exception_divide_by_zero() {
+    cli();
     clear();
     printf(" Exception 0x00: Divide By Zero");
     while (1);
 }
 
 void exception_debug() {
+    cli();
     clear();
     printf(" Exception 0x01: Debug");
     while (1);
 }
 
 void exception_non_maskable_interrupt(){
+    cli();
     clear();
     printf(" Exception 0x02: Non-maskable interrupt");
     while(1);
 }
 
 void exception_breakpoint(){
+    cli();
     clear();
     printf(" Exception 0x03: Breakpoint");
     while(1);
 }
 
 void exception_overflow(){
+    cli();
     clear();
     printf(" Exception 0x04: Overflow");
     while(1);
 }
 
 void exception_bound_range_exceeded(){
+    cli();
     clear();
     printf(" Exception 0x05: Bound Range Exceeded");
     while(1);
 }
 
 void exception_invalid_opcode(){
+    cli();
     clear();
     printf(" Exception 0x06: Invalid Opcode");
     while(1);
 }
 
 void exception_device_not_available(){
+    cli();
     clear();
     printf(" Exception 0x07: Device Not Available");
     while(1);
 }
 
 void exception_double_fault(){
+    cli();
     clear();
     printf(" Exception 0x08: Double Fault");
     while(1);
 }
 
 void exception_segment_overrun(){
+    cli();
     clear();
     printf(" Exception 0x09: Coprocessor Segment Overrun");
     while(1);
 }
 
 void exception_invalid_tss(){
+    cli();
     clear();
     printf(" Exception 0x0A: Invalid TSS");
     while(1);
 }
 
 void exception_segment_not_present(){
+    cli();
     clear();
     printf(" Exception 0x0B: Segment Not Present");
     while(1);
 }
 
 void exception_stack_segment_fault(){
+    cli();
     clear();
     printf(" Exception 0x0C: Stack-Segment Fault");
     while(1);
 }
 void exception_general_protection(){
+    cli();
     clear();
     printf(" Exception 0x0D: General Protection");
     while(1);
 }
 void exception_page_fault(){
+    cli();
     clear();
     uint32_t page_fault_linear_addr;
     asm volatile (
@@ -116,36 +131,42 @@ void exception_page_fault(){
 }
 
 void exception_reserved(){
+    cli();
     clear();
     printf(" Exception 0x0F: Reserved");
     while(1);
 }
 
 void exception_x87_floating_point_error(){
+    cli();
     clear();
     printf(" Exception 0x10: x87 FPU Floating-Point Error");
     while(1);
 }
 
 void exception_alignment_check(){
+    cli();
     clear();
     printf(" Exception 0x11: Alignment Check");
     while(1);
 }
 
 void exception_machine_check(){
+    cli();
     clear();
     printf(" Exception 0x12: Machine Check");
     while(1);
 }
 
 void exception_SIMD_floating_point(){
+    cli();
     clear();
     printf(" Exception 0x13: SIMD Floating-Point");
     while(1);
 }
 
 void system_call() {
+    cli();
     clear();
     printf("System call ^_^");
     while(1);
@@ -187,4 +208,6 @@ void idt_init() {
     for (i = 0x81; i < NUM_VEC; ++i) {
         INIT_IDT_UNPRESENT(i);
     }
+
+    lidt(idt_desc_ptr);
 }

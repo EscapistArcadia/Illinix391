@@ -45,7 +45,18 @@ int idt_test(){
 	return result;
 }
 
-// add more tests here
+int exp0_test() {
+	TEST_HEADER;
+	int a = 0xECE391, b = 0;
+	a = a / b;
+	return PASS;
+}
+
+int syscall_test() {
+	TEST_HEADER;
+	asm("int $0x80");
+	return PASS;
+}
 
 /* Checkpoint 2 tests */
 /* Checkpoint 3 tests */
@@ -56,5 +67,7 @@ int idt_test(){
 /* Test suite entry point */
 void launch_tests(){
 	TEST_OUTPUT("idt_test", idt_test());
+	// TEST_OUTPUT("exp0_test", exp0_test());
+	// TEST_OUTPUT("syscall_test", syscall_test());
 	// launch your tests here
 }
