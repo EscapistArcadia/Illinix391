@@ -5,6 +5,7 @@
 #include "multiboot.h"
 #include "x86_desc.h"
 #include "lib.h"
+#include "idt.h"
 #include "i8259.h"
 #include "debug.h"
 #include "tests.h"
@@ -138,6 +139,7 @@ void entry(unsigned long magic, unsigned long addr) {
 
     /* Init the PIC */
     i8259_init();
+    idt_init();
 
     /* Initialize devices, memory, filesystem, enable device interrupts on the
      * PIC, any other initialization stuff... */
