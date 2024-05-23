@@ -84,6 +84,12 @@ ldt_desc_ptr:
 
 gdt_bottom:
 
+.align 4
+    .word 0 # Padding
+gdt_desc:
+    .word gdt_bottom - gdt - 1  # size of gdt
+    .long gdt                   # gdt entry address
+
     .align 16
 ldt:
     .rept 4
