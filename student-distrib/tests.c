@@ -58,6 +58,12 @@ int syscall_test() {
 	return PASS;
 }
 
+int paging_test(uint8_t *addr) {
+	TEST_HEADER;
+	*addr = 0x78;
+	return PASS;
+}
+
 /* Checkpoint 2 tests */
 /* Checkpoint 3 tests */
 /* Checkpoint 4 tests */
@@ -66,8 +72,11 @@ int syscall_test() {
 
 /* Test suite entry point */
 void launch_tests(){
-	TEST_OUTPUT("idt_test", idt_test());
+	// TEST_OUTPUT("idt_test", idt_test());
 	// TEST_OUTPUT("exp0_test", exp0_test());
 	// TEST_OUTPUT("syscall_test", syscall_test());
+	// TEST_OUTPUT("paging_test", paging_test((uint8_t *)0x12345));
+	// TEST_OUTPUT("paging_test", paging_test((uint8_t *)0xB8765));
+	// TEST_OUTPUT("paging_test", paging_test((uint8_t *)0x456789));
 	// launch your tests here
 }

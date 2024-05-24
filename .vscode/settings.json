@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "keyboard.h": "c",
+        "debug.h": "c",
+        "paging.h": "c"
+    }
+}

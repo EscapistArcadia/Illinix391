@@ -9,8 +9,10 @@
 #include "types.h"
 
 /* Ports that each PIC sits on */
-#define MASTER_8259_PORT    0x20
-#define SLAVE_8259_PORT     0xA0
+#define MASTER_8259_COMMAND 0x20
+#define MASTER_8259_DATA    0x21
+#define SLAVE_8259_COMMAND  0xA0
+#define SLAVE_8259_DATA     0xA1
 
 /* Initialization control words to init each PIC.
  * See the Intel manuals for details on the meaning
@@ -27,15 +29,40 @@
  * to declare the interrupt finished */
 #define EOI                 0x60
 
+#define IRQ_MIN             0x00
+#define SLAVE_IRQ           0x02
+#define IRQ_MASTER_MAX      0x07
+#define IRQ_MAX             0x0F
+
 /* Externally-visible functions */
 
-/* Initialize both PICs */
+/**
+ * @brief Initializes i8259.
+ *      - sends the initialization command to command ports (\c 0x20 & \c 0xA0)
+ *      - sends three control words to data ports
+ *      - sends initial masking
+ */
 void i8259_init(void);
-/* Enable (unmask) the specified IRQ */
+
+/**
+ * @brief enables a specified interrupts handled by PIC.
+ *
+ * @param irq_num the irq number of interrupt
+ */
 void enable_irq(uint32_t irq_num);
-/* Disable (mask) the specified IRQ */
+
+/**
+ * @brief disables a specific interrupts handled by PIC.
+ *
+ * @param irq_num the irq number of interrupt
+ */
 void disable_irq(uint32_t irq_num);
-/* Send end-of-interrupt signal for the specified IRQ */
+
+/**
+ * @brief sends end-of-interrupt to PIC for further interrupts.
+ * 
+ * @param irq_num the irq number of ended interrupt
+ */
 void send_eoi(uint32_t irq_num);
 
 #endif /* _I8259_H */

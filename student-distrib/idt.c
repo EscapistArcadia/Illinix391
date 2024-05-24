@@ -1,5 +1,7 @@
 #include "idt.h"
 #include "x86_desc.h"
+#include "keyboard.h"
+#include "rtc.h"
 
 #define INIT_IDT_UNPRESENT(i) do {                      \
     idt[i].present = 0;                                 \
@@ -172,6 +174,40 @@ void system_call() {
     while(1);
 }
 
+extern void keyboard_intr();
+extern void rtc_intr();
+
+void mystery() {
+    asm volatile (
+        "keyboard_intr:\n"
+        "pushfl\n"
+        "pushal\n"
+        "call keyboard_handler\n"
+        "popal\n"
+        "popfl\n"
+        "iret\n"
+        
+        "rtc_intr:\n"
+        "pushfl\n"
+        "pushal\n"
+        "call rtc_handler\n"
+    // );
+    // outb(0x0C, 0x70);
+    // inb(0x71);
+    // asm volatile (
+    //     "call test_interrupts\n"
+    //     "pushl $8\n"
+    //     "call send_eoi\n"
+    //     "add $4, %%esp\n"
+        "popal\n"
+        "popfl\n"
+        "iret\n"
+        :
+        :
+        : "%al", "memory"
+    );
+}
+
 /**
  * @brief initializes IDT for the OS and loads it to IDTR
  */
@@ -199,15 +235,16 @@ void idt_init() {
     INIT_EXCEPTION(0x12, exception_machine_check);
     INIT_EXCEPTION(0x13, exception_SIMD_floating_point);
 
-    for (i = 0x14; i < 0x80; ++i) {
+    for (i = 0x14; i < NUM_VEC; ++i) {
         INIT_IDT_UNPRESENT(i);
     }
 
+    INIT_INTERRUPT(KEYBOARD_INTR_INDEX, keyboard_intr);
+    INIT_INTERRUPT(RTC_INTR_INDEX, rtc_intr);
+    
     INIT_SYSTEMCALL(0x80, system_call);
     
-    for (i = 0x81; i < NUM_VEC; ++i) {
-        INIT_IDT_UNPRESENT(i);
-    }
-
     lidt(idt_desc_ptr);
+    return;
+
 }

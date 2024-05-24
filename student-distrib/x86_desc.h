@@ -174,6 +174,60 @@ do {                                                             \
     str.offset_15_00 = ((uint32_t)(handler) & 0xFFFF);           \
 } while (0)
 
+typedef union {
+    uint32_t val;
+    union {
+        struct {
+            uint32_t present: 1;
+            uint32_t read_write: 1;
+            uint32_t user_supervisor: 1;
+            uint32_t write_through: 1;
+            uint32_t cache_disabled: 1;
+            uint32_t accessed: 1;
+            uint32_t reserved: 1;
+            uint32_t page_size: 1;
+            uint32_t global: 1;
+            uint32_t available: 3;
+            uint32_t page_table_base_address: 20;
+        } KB __attribute__((packed));
+
+        struct {
+            uint32_t present: 1;
+            uint32_t read_write: 1;
+            uint32_t user_supervisor: 1;
+            uint32_t write_through: 1;
+            uint32_t cache_disabled: 1;
+            uint32_t accessed: 1;
+            uint32_t dirty: 1;
+            uint32_t page_size: 1;
+            uint32_t global: 1;
+            uint32_t available: 3;
+            uint32_t page_table_attribute_index: 1;
+            uint32_t reserved: 9;
+            uint32_t page_base_address: 10;
+        } MB __attribute__((packed));
+    };
+} pde_t;
+
+typedef union pte_t {
+    uint32_t val;
+    struct {
+        uint32_t present : 1;
+        uint32_t read_write : 1;
+        uint32_t user_supervisor : 1;
+        uint32_t write_through : 1;
+        uint32_t cache_disabled : 1;
+        uint32_t accessed : 1;
+        uint32_t dirty : 1;
+        uint32_t page_table_attribute_index : 1;
+        uint32_t global : 1;
+        uint32_t available : 3;
+        uint32_t page_base_address : 20;
+    } __attribute__((packed));
+} pte_t;
+
+
+
 /* Load task register.  This macro takes a 16-bit index into the GDT,
  * which points to the TSS entry.  x86 then reads the GDT's TSS
  * descriptor and loads the base address specified in that descriptor
