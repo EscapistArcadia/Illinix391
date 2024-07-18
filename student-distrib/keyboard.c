@@ -1,4 +1,5 @@
 #include "keyboard.h"
+#include "x86_desc.h"
 #include "i8259.h"
 
 #define KEYBOARD_PORT       0x60    /* the port for keyboard */
@@ -61,6 +62,10 @@ char visible_scancode_map_shifted[] = {
     '\0', ' '
 };
 
+uint8_t input[MAX_TERMINAL];            /* records user typed letters*/
+uint32_t length;                        /* records length of input */
+volatile uint32_t input_in_progress;    /* nonzero if user is typing */
+
 /**
  * @brief enables keyboard interrupt
  */
@@ -92,13 +97,20 @@ void keyboard_handler() {
     } else if (scancode == SC_LEFTCONTROLREL) {
         keyboard_bitmap &= ~KBF_CONTROL;
     }
+    /* tab */
+    else if (scancode == SC_TAB) {
+        putc('\t');
+        input[length++] = '\t';
+    }
     /* backspace */
     else if (scancode == SC_BACKSPACE) {
         putc('\b');
+        input[--length] = 0;
     }
     /* enter */
     else if (scancode == SC_ENTER) {
         putc('\n');
+        input_in_progress = 0;
     }
     /* default visible chars */
     else {
@@ -108,9 +120,12 @@ void keyboard_handler() {
                     clear();
                 }
             } else {
-                char* map = keyboard_bitmap & KBF_LEFTSHIFT || keyboard_bitmap & KBF_RIGHTSHIFT
-                            ? visible_scancode_map_shifted : visible_scancode_map;
-                putc(map[scancode]);                /* checks if shift is down */
+                char ch = (keyboard_bitmap & KBF_LEFTSHIFT || keyboard_bitmap & KBF_RIGHTSHIFT
+                            ? visible_scancode_map_shifted : visible_scancode_map)[scancode];
+                putc(ch);                /* checks if shift is down */
+                if (length < MAX_TERMINAL) {
+                    input[length++] = ch;
+                }
             }
         }
     }

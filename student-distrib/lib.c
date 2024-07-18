@@ -7,6 +7,7 @@
 #define NUM_COLS    80
 #define NUM_ROWS    25
 #define ATTRIB      0x7
+#define TAB         0xF
 
 static int screen_x;
 static int screen_y;
@@ -22,6 +23,22 @@ void clear(void) {
         *(uint8_t *)(video_mem + (i << 1)) = ' ';
         *(uint8_t *)(video_mem + (i << 1) + 1) = ATTRIB;
     }
+}
+
+/**
+ * @brief moves the entire screen up one rows; first line would be ignored
+ */
+void scroll(void) {
+    uint32_t i, count = ((NUM_ROWS - 1) * NUM_COLS) << 1;
+    char *pos = video_mem;
+    for (i = 0; i < count; i += 2, pos += 2) {  /* move existing chars up one rows*/
+        *(uint16_t *)pos = *(uint16_t *)(pos + (NUM_COLS << 1));
+    }
+    for (i = 0; i < NUM_COLS; ++i, ++pos) {  /* clear the last line */
+        *pos = 0;
+        *(++pos) = ATTRIB;
+    }
+    --screen_y;
 }
 
 /* Standard printf().
@@ -168,16 +185,89 @@ int32_t puts(int8_t* s) {
  * Return Value: void
  *  Function: Output a character to the console */
 void putc(uint8_t c) {
-    if(c == '\n' || c == '\r') {
+    if (c == '\n' || c == '\r') {   /* new line (enter) */
         screen_y++;
         screen_x = 0;
+        // memset((uint8_t *)(video_mem + ((NUM_COLS * screen_y + screen_x - 1) << 1)), 0, (NUM_COLS - screen_x) << 1);
+        if (screen_y == NUM_ROWS) { /* bottom line -> scroll */
+            scroll();
+        }
+    } else if (c == '\b') {
+        int i = 0;
+        uint32_t offset = NUM_COLS * screen_y + screen_x - 1,
+                 count = (*(uint8_t *)(video_mem + (offset << 1) + 1) == TAB) ? 4 : 1;
+        
+        do {                        /* tab -> max at 4 */
+            if (screen_x) {         /* at middle of screen, just replace it */
+                --screen_x;
+            } else {
+                if (screen_y) {     /* not first row, but left */
+                    screen_x = NUM_COLS - 1;
+                    --screen_y;
+                } else {            /* upper left -> nothing to delete */
+                    return;
+                }
+            }
+            *(uint8_t *)(video_mem + (offset << 1)) = 0;
+            *(uint8_t *)(video_mem + (offset << 1) + 1) = ATTRIB;
+        } while (++i < count && *(uint8_t *)(video_mem + ((--offset) << 1) + 1) == TAB);
+    } else if (c == '\t') { /* puts spaces till multiple of four */
+        int i = 0;
+        uint32_t offset = NUM_COLS * screen_y + screen_x, count = 4 - (offset & 0x3);
+
+        for (i = 0; i < count; ++i, ++offset) {
+            *(uint8_t *)(video_mem + (offset << 1)) = ' ';
+            *(uint8_t *)(video_mem + (offset << 1) + 1) = TAB;
+            ++screen_x;             /* no new line created */
+        }
     } else {
         *(uint8_t *)(video_mem + ((NUM_COLS * screen_y + screen_x) << 1)) = c;
         *(uint8_t *)(video_mem + ((NUM_COLS * screen_y + screen_x) << 1) + 1) = ATTRIB;
         screen_x++;
-        screen_x %= NUM_COLS;
-        screen_y = (screen_y + (screen_x / NUM_COLS)) % NUM_ROWS;
+        if (screen_x == NUM_COLS) {
+            screen_x = 0;
+            ++screen_y;
+            if (screen_y == NUM_ROWS) {
+                scroll();
+            }
+        }
+        // screen_x %= NUM_COLS;
+        // screen_y = (screen_y + (screen_x / NUM_COLS)) % NUM_ROWS;
     }
+    set_cursor_pos(screen_x, screen_y);
+}
+
+void get_screen_coordinate(int *x, int *y) {
+    if (x) {
+        *x = screen_x;
+    }
+    if (y) {
+        *y = screen_y;
+    }
+}
+
+void set_screen_coordinate(int x, int y) {
+    screen_x = x;
+    screen_y = y;
+}
+
+void get_cursor_pos(int *x, int *y) {
+    uint16_t pos = 0;
+    outb(0x3D4, 0x0F);
+    pos |= inb(0x3D5);
+    outb(0x3D4, 0x0E);
+    pos |= ((uint16_t)inb(0x3D5)) << 8;
+    *x = pos % NUM_COLS;
+    *y = pos / NUM_COLS;
+}
+
+void set_cursor_pos(int x, int y) {
+	uint16_t pos = y * NUM_COLS + x;
+    
+	outb(0x0F, 0x3D4);
+	outb((uint8_t) (pos & 0xFF), 0x3D5);
+	outb(0x0E, 0x3D4);
+	outb((uint8_t) ((pos >> 8) & 0xFF), 0x3D5);
 }
 
 /* int8_t* itoa(uint32_t value, int8_t* buf, int32_t radix);

@@ -22,6 +22,9 @@
 /* Number of vectors in the interrupt descriptor table (IDT) */
 #define NUM_VEC     256
 
+#define MAX_TERMINAL 128
+#define TERMINAL_COUNT 4
+
 #ifndef ASM
 
 /* This structure is used to load descriptor base registers
@@ -174,59 +177,84 @@ do {                                                             \
     str.offset_15_00 = ((uint32_t)(handler) & 0xFFFF);           \
 } while (0)
 
-typedef union {
+/**
+ * @brief \c pde_t stores a 4 MB page entry. It could be an entry to a page table, or an direct entry
+ * to the memory aligned to 4 MB. The \c page_size entry determines the entry type.
+ */
+typedef union pde_t {
     uint32_t val;
     union {
         struct {
-            uint32_t present: 1;
-            uint32_t read_write: 1;
-            uint32_t user_supervisor: 1;
-            uint32_t write_through: 1;
-            uint32_t cache_disabled: 1;
-            uint32_t accessed: 1;
-            uint32_t reserved: 1;
-            uint32_t page_size: 1;
-            uint32_t global: 1;
-            uint32_t available: 3;
-            uint32_t page_table_base_address: 20;
+            uint32_t present: 1;            /* access of non-present page will trigger page fault */
+            uint32_t read_write: 1;         /* set to 1 if the page is writable, WP in CR0 determines effectiveness range */
+            uint32_t user_supervisor: 1;    /* set to 1 to allows user to access it */
+            uint32_t write_through: 1;      /* NOT USED determines caching policy */
+            uint32_t cache_disabled: 1;     /* NOT USED determines if the page can be cached */
+            uint32_t accessed: 1;           /* NOT USED & SET BY OS, if the page is accessed */
+            uint32_t available1: 1;         /* NOT USED, available for programmers */
+            uint32_t page_size: 1;          /* = 0 for this case*/
+            uint32_t global: 1;             /* cache will not be cleared as TLB flush */
+            uint32_t available3: 3;         /* available to programmers */
+            uint32_t page_table_base_address: 20;   /* the address to the page table */
         } KB __attribute__((packed));
 
         struct {
-            uint32_t present: 1;
-            uint32_t read_write: 1;
-            uint32_t user_supervisor: 1;
-            uint32_t write_through: 1;
-            uint32_t cache_disabled: 1;
-            uint32_t accessed: 1;
-            uint32_t dirty: 1;
-            uint32_t page_size: 1;
-            uint32_t global: 1;
-            uint32_t available: 3;
-            uint32_t page_table_attribute_index: 1;
+            uint32_t present: 1;            /* access of non-present page will trigger page fault */
+            uint32_t read_write: 1;         /* set to 1 if the page is writable, WP in CR0 determines effectiveness range */
+            uint32_t user_supervisor: 1;;   /* set to 1 to allows user to access it */
+            uint32_t write_through: 1;      /* NOT USED determines caching policy */
+            uint32_t cache_disabled: 1;     /* NOT USED determines if the page can be cached */
+            uint32_t accessed: 1;           /* NOT USED & SET BY OS, if the page is accessed */
+            uint32_t dirty: 1;              /* NOT USED & SET BY OS, if the page is written */
+            uint32_t page_size: 1;          /* = 1 for this case */
+            uint32_t global: 1;             /* cache will not be cleared as TLB flush */
+            uint32_t available: 3;          /* available to programmers */
+            uint32_t page_table_attribute_index: 1; /* NOT USED */
             uint32_t reserved: 9;
-            uint32_t page_base_address: 10;
+            uint32_t page_base_address: 10; /* the physical address to the memory aligned to 4KB */
         } MB __attribute__((packed));
     };
 } pde_t;
 
+/**
+ * @brief \c pte_t stores a 4KB page entry
+ */
 typedef union pte_t {
     uint32_t val;
     struct {
-        uint32_t present : 1;
-        uint32_t read_write : 1;
-        uint32_t user_supervisor : 1;
-        uint32_t write_through : 1;
-        uint32_t cache_disabled : 1;
-        uint32_t accessed : 1;
-        uint32_t dirty : 1;
-        uint32_t page_table_attribute_index : 1;
-        uint32_t global : 1;
-        uint32_t available : 3;
-        uint32_t page_base_address : 20;
+        uint32_t present: 1;            /* access of non-present page will trigger page fault */
+        uint32_t read_write: 1;         /* set to 1 if the page is writable, WP in CR0 determines effectiveness range */
+        uint32_t user_supervisor: 1;;   /* set to 1 to allows user to access it */
+        uint32_t write_through: 1;      /* NOT USED determines caching policy */
+        uint32_t cache_disabled: 1;     /* NOT USED determines if the page can be cached */
+        uint32_t accessed: 1;           /* NOT USED & SET BY OS, if the page is accessed */
+        uint32_t dirty: 1;              /* NOT USED & SET BY OS, if the page is written */
+        uint32_t page_table_attribute_index : 1;    /* NOT USED */
+        uint32_t global: 1;             /* cache will not be cleared as TLB flush */
+        uint32_t available: 3;          /* available to programmers */
+        uint32_t page_base_address : 20;/* the physical address to memory aligned with 4KB */
     } __attribute__((packed));
 } pte_t;
 
+/**
+ * @brief \c file_operations_t stores function pointers to some sepcific type of files.
+ */
+typedef struct file_operations_t {
+    int32_t (*open)(const uint8_t *file_name);
+    int32_t (*close)(int32_t fd);
+    int32_t (*read)(int32_t fd, void *buf, uint32_t count);
+    int32_t (*write)(int32_t fd, const void *buf, uint32_t count);
+} file_operations_t;
 
+/**
+ * @brief \c file_t stores information of a file
+ */
+typedef struct file_t {
+    file_operations_t *ops;
+    uint32_t inode;
+    uint32_t file_pos;
+    uint32_t present;
+} file_t;
 
 /* Load task register.  This macro takes a 16-bit index into the GDT,
  * which points to the TSS entry.  x86 then reads the GDT's TSS

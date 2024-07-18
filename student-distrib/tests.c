@@ -1,6 +1,9 @@
 #include "tests.h"
 #include "x86_desc.h"
 #include "lib.h"
+#include "term.h"
+#include "rtc.h"
+#include "filesys.h"
 
 #define PASS 1
 #define FAIL 0
@@ -65,6 +68,69 @@ int paging_test(uint8_t *addr) {
 }
 
 /* Checkpoint 2 tests */
+int terminal_test() {
+	TEST_HEADER;
+	uint8_t buf[128];
+	int32_t count;
+	while ((count = terminal_read(0, buf, 128)) != -1) {
+		terminal_write(0, buf, count);
+	}
+	return 0;
+}
+
+
+int rtc_test(char ch) {
+	TEST_HEADER;
+	rtc_open(NULL);
+
+	int32_t freq, i, j, max_count = 10;
+	char seq[RTC_MAX_RATE + 1] = {ch, '\0'};
+
+	for (freq = RTC_MIN_FREQ, i = 1; freq <= RTC_MAX_FREQ; freq = (freq << 1), ++i, max_count = max_count << 1) {
+		clear();
+		seq[i] = ++ch;
+		rtc_write(NULL, &freq, sizeof(int32_t));
+
+		for (j = 0; j < max_count; ++j) {
+			printf("Frequency: %d #%d ", freq, j);
+			printf(seq);
+			printf("\n");
+			rtc_read(NULL, NULL, NULL);
+		}
+	}
+
+	rtc_close(NULL);
+	return PASS;
+}
+
+int file_system_test() {
+	int ret;
+	if ((ret = file_open((const uint8_t *)"verylargetextwithverylongname.txt")) != -1) {
+		return FAIL;
+	}
+	if ((ret = file_open((const uint8_t *)"fish")) == -1) {
+		return FAIL;
+	}
+	
+	char content[65536];
+	int size = file_read(ret, content, 65536);
+	printf("%d %d\n", size, file_size(ret));
+	terminal_write(0, (const uint8_t *)content, size);
+	return PASS;
+}
+
+int list_file_test() {
+	int fd = dir_open((const uint8_t *)".");
+	char file_name[64];
+	
+	while (dir_read(fd, file_name, 64) != 0) {
+		printf("Name: ");
+		terminal_write(fd, file_name, FS_MAX_LEN);
+		
+		printf("Size: %d\n", file_size(file_open((const uint8_t *)file_name)));
+	}
+	return PASS;
+}
 /* Checkpoint 3 tests */
 /* Checkpoint 4 tests */
 /* Checkpoint 5 tests */
@@ -78,5 +144,11 @@ void launch_tests(){
 	// TEST_OUTPUT("paging_test", paging_test((uint8_t *)0x12345));
 	// TEST_OUTPUT("paging_test", paging_test((uint8_t *)0xB8765));
 	// TEST_OUTPUT("paging_test", paging_test((uint8_t *)0x456789));
+
+	TEST_OUTPUT("rtc_test", rtc_test('A'));
+	TEST_OUTPUT("file_system_test", file_system_test());
+	TEST_OUTPUT("list_file_test", list_file_test());
+	TEST_OUTPUT("terminal_test", terminal_test());
+	
 	// launch your tests here
 }
