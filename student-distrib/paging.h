@@ -13,6 +13,7 @@
 
 pde_t page_directories[PAGING_COUNT] __attribute__((aligned(PAGING_ALIGN)));
 pte_t page_table_kernel_vidmem[PAGING_COUNT] __attribute__((aligned(PAGING_ALIGN)));
+pte_t page_table_user_vidmem[PAGING_COUNT] __attribute__((aligned(PAGING_ALIGN)));
 
 void paging_init();
 

@@ -73,7 +73,7 @@ int32_t halt(uint8_t status) {
 
     /* *************** Reclaim the PCB & Resources *************** */
     pcb->present = 0;
-    for (i = 0; i < 8; ++i) {
+    for (i = 2; i < 8; ++i) {
         if (pcb->files[i].present) {
             pcb->files[i].ops->close(i);                /* closes all files */
             pcb->files[i].present = 0;                  /* reclaims all resources*/
@@ -365,6 +365,11 @@ int32_t getargs(uint8_t* buf, int32_t count) {
  * @return 0 if success, -1 if fails 
  */
 int32_t vidmap(uint8_t** start) {
+    if (!start || ((uint32_t)start >> 22) != USER_ENTRY) {
+        return -1;
+    }
+
+    *start = (uint8_t *)(((VIDMEM_INDEX << 22) | (VIDMEM_INDEX << 12)) & 0xFFFFF000) ;
     return 0;
 }
 
