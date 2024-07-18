@@ -139,8 +139,8 @@ int32_t file_close(int32_t fd) {
  * @return number of bytes read
  */
 int32_t file_read(int32_t fd, void *buf, uint32_t count) {
-    // pcb_t *curr = current_pcb();
-    return read_data(fd, 0, buf, count);
+    pcb_t *curr = get_current_pcb();
+    return read_data(curr->files[fd].inode, curr->files[fd].file_pos, buf, count);
 }
 
 /**
@@ -199,7 +199,7 @@ int32_t dir_read(int32_t fd, void *buf, uint32_t count) {
     if (count > max_count) {
         count = max_count;
     }
-    memcpy(buf, de.file_name, count - 1);
+    memcpy(buf, de.file_name, count);
     ++pos;
     return count;
 }

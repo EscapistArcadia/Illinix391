@@ -13,6 +13,14 @@ static int screen_x;
 static int screen_y;
 static char* video_mem = (char *)VIDEO;
 
+pcb_t *get_current_pcb() {
+    uint32_t esp;
+    asm volatile (
+        "movl %%esp, %0":"=r"(esp)
+    );
+    return (pcb_t *)(esp & 0x7FE000);
+}
+
 /* void clear(void);
  * Inputs: void
  * Return Value: none

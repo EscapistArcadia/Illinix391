@@ -1,4 +1,5 @@
 #include "paging.h"
+#include "syscall.h"
 
 #define PAGING_FLAG  0x80000001 /* first: paging enable; last: protection mode*/
 #define PAGING_SIZE_EXTENTION_FLAG 0x00000010 /* enables 4MB pages */
@@ -15,6 +16,7 @@ void paging_init() {
     page_directories[1].val |= KERNEL_ADDR;
     page_table_kernel_vidmem[1].page_base_address = 1;
     for (i = 2; i < PAGING_COUNT; ++i) {
+        page_directories[i].MB.page_size = 1;
         page_directories[i].MB.page_base_address = i;
         page_table_kernel_vidmem[i].page_base_address = i;
     }

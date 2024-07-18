@@ -2,7 +2,6 @@
 #define _PAGING_H
 
 #include "lib.h"
-#include "x86_desc.h"
 
 #define PAGING_COUNT 1024
 #define PAGING_ALIGN 0x1000

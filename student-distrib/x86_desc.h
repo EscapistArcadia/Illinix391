@@ -236,33 +236,6 @@ typedef union pte_t {
     } __attribute__((packed));
 } pte_t;
 
-/**
- * @brief \c file_operations_t stores function pointers to some sepcific type of files.
- */
-typedef struct file_operations_t {
-    int32_t (*open)(const uint8_t *file_name);
-    int32_t (*close)(int32_t fd);
-    int32_t (*read)(int32_t fd, void *buf, uint32_t count);
-    int32_t (*write)(int32_t fd, const void *buf, uint32_t count);
-} file_operations_t;
-
-/**
- * @brief \c file_t stores information of a file
- */
-typedef struct file_t {
-    file_operations_t *ops;
-    uint32_t inode;
-    uint32_t file_pos;
-    uint32_t present;
-} file_t;
-
-typedef struct dentry_t {
-    uint8_t file_name[32];
-    uint32_t file_type;
-    uint32_t inode_num;
-    uint8_t reserved[24];
-} dentry_t;
-
 /* Load task register.  This macro takes a 16-bit index into the GDT,
  * which points to the TSS entry.  x86 then reads the GDT's TSS
  * descriptor and loads the base address specified in that descriptor

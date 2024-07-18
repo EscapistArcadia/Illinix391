@@ -1,5 +1,5 @@
 #include "keyboard.h"
-#include "x86_desc.h"
+#include "syscall.h"
 #include "i8259.h"
 
 #define KEYBOARD_PORT       0x60    /* the port for keyboard */
@@ -104,8 +104,10 @@ void keyboard_handler() {
     }
     /* backspace */
     else if (scancode == SC_BACKSPACE) {
-        putc('\b');
-        input[--length] = 0;
+        if (length > 0) {
+            putc('\b');
+            input[--length] = 0;
+        }
     }
     /* enter */
     else if (scancode == SC_ENTER) {
@@ -118,6 +120,10 @@ void keyboard_handler() {
             if (keyboard_bitmap & KBF_CONTROL) {    /* control is pressed */
                 if (scancode == 0x26) {             /* Ctrl+L: clean the screen */
                     clear();
+                } else if (scancode == 0x2E) {
+                    memset(input, 0, MAX_TERMINAL);
+                    send_eoi(KEYBOARD_IRQ);
+                    halt(220);
                 }
             } else {
                 char ch = (keyboard_bitmap & KBF_LEFTSHIFT || keyboard_bitmap & KBF_RIGHTSHIFT

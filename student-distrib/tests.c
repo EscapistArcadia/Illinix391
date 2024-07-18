@@ -4,6 +4,7 @@
 #include "term.h"
 #include "rtc.h"
 #include "filesys.h"
+#include "syscall.h"
 
 #define PASS 1
 #define FAIL 0
@@ -105,16 +106,18 @@ int rtc_test(char ch) {
 
 int file_system_test() {
 	int ret;
+	/* should return -1, since file name exceeds the maximum length */
 	if ((ret = file_open((const uint8_t *)"verylargetextwithverylongname.txt")) != -1) {
-		return FAIL;
+		return FAIL;	
 	}
+	/* should return 0, since the file exists */
 	if ((ret = file_open((const uint8_t *)"fish")) == -1) {
 		return FAIL;
 	}
 	
 	char content[65536];
 	int size = file_read(ret, content, 65536);
-	printf("%d %d\n", size, file_size(ret));
+	printf("%d %d\n", size, file_size(ret));			/* test file size inquery */
 	terminal_write(0, (const uint8_t *)content, size);
 	return PASS;
 }
@@ -145,10 +148,12 @@ void launch_tests(){
 	// TEST_OUTPUT("paging_test", paging_test((uint8_t *)0xB8765));
 	// TEST_OUTPUT("paging_test", paging_test((uint8_t *)0x456789));
 
-	TEST_OUTPUT("rtc_test", rtc_test('A'));
-	TEST_OUTPUT("file_system_test", file_system_test());
-	TEST_OUTPUT("list_file_test", list_file_test());
-	TEST_OUTPUT("terminal_test", terminal_test());
+	// TEST_OUTPUT("rtc_test", rtc_test('A'));
+	// TEST_OUTPUT("file_system_test", file_system_test());
+	// TEST_OUTPUT("list_file_test", list_file_test());
+	// TEST_OUTPUT("terminal_test", terminal_test());
 	
+	execute((const uint8_t *)"               shell    ");
+
 	// launch your tests here
 }

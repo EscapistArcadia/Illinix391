@@ -6,6 +6,39 @@
 #define _LIB_H
 
 #include "types.h"
+#include "x86_desc.h"
+
+/**
+ * @brief \c file_operations_t stores function pointers to some sepcific type of files.
+ */
+typedef struct file_operations_t {
+    int32_t (*open)(const uint8_t *file_name);
+    int32_t (*close)(int32_t fd);
+    int32_t (*read)(int32_t fd, void *buf, uint32_t count);
+    int32_t (*write)(int32_t fd, const void *buf, uint32_t count);
+} file_operations_t;
+
+/**
+ * @brief \c file_t stores information of a file
+ */
+typedef struct file_t {
+    file_operations_t *ops;
+    uint32_t inode;
+    uint32_t file_pos;
+    uint32_t present;
+} file_t;
+
+typedef struct pcb_t {
+    uint8_t present;
+    int32_t pid;
+    struct pcb_t *parent;       /* parent's pcb */
+    uint32_t parent_ebp;        /* parent's ebp as the program quit */
+    uint32_t esp0;              /* the tss.esp0 for the process */
+    uint8_t argv[128];          /* argument passed by the user */
+    file_t files[8];            /* files opened by the process */
+} pcb_t;
+
+pcb_t *get_current_pcb();
 
 int32_t printf(int8_t *format, ...);
 void putc(uint8_t c);

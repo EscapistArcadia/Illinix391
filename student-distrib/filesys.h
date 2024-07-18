@@ -13,6 +13,13 @@ typedef struct {
     uint32_t data_blocks[1023];     /* (4096 - sizeof(uint32_t)) / 4 */
 } inode_t;
 
+typedef struct dentry_t {
+    uint8_t file_name[32];
+    uint32_t file_type;
+    uint32_t inode_num;
+    uint8_t reserved[24];
+} dentry_t;
+
 typedef struct {
     uint8_t data[FS_BLOCK_SIZE];
 } data_block_t;
@@ -31,6 +38,37 @@ typedef struct {
  * @param start the boot block address
  */
 void file_system_init(uint32_t start);
+
+
+/**
+ * @brief reads the dentry corresponding to \p file_name
+ * 
+ * @param file_name 
+ * @param dentry the dentry returned
+ * @return 0 if succeed, -1 if fail
+ */
+int32_t read_dentry_by_name(const uint8_t *file_name, dentry_t *dentry);
+
+/**
+ * @brief reads the dentry block at \p index
+ * 
+ * @param index 
+ * @param dentry the dentry at \p index
+ * @return 0 if succeed, -1 if fail
+ */
+int32_t read_dentry_by_index(uint32_t index, dentry_t *dentry);
+
+/**
+ * @brief reads the data starting from \p offset of \p inode to \p buf
+ * with capacity \p len
+ * 
+ * @param inode the inode number to read
+ * @param offset the starting position to read
+ * @param buf the buffer to write
+ * @param len the capacity of the buffer
+ * @return number of bytes read, or -1 if fail
+ */
+int32_t read_data(uint32_t inode, uint32_t offset, uint8_t *buf, uint32_t len);
 
 /**
  * @brief opens a file at \p path
