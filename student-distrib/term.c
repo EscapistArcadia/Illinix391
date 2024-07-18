@@ -39,17 +39,17 @@ int32_t terminal_read(int32_t file, void* buf, uint32_t count) {
         return -1;
     }
 
-    input_in_progress = 1;
+    input_in_progress = 1;              /* starts recording and waiting */
     while (input_in_progress);
 
-    if (count > length) {
+                                        /* checked length in keyboard handler */
+    if (count > length) {               /* set null-termination of string */
         *((uint8_t *)buf + length) = 0;
         count = length;
     }
 
-    memcpy(buf, input, count);
-    memset(input, 0, MAX_TERMINAL);
-    length = 0;
+    memcpy(buf, input, count);          /* copy and empty the input buffer */
+    length = 0;                         /* start writing at head */
     input_in_progress = 1;
     return count;
 }
@@ -72,8 +72,8 @@ int32_t terminal_write(int32_t file, const void* buf, uint32_t count) {
     for (i = 0; i < count; ++i) {       /* writes all buf, even though '\0' */
         putc(((char *)buf)[i]);
     }
-    memset(input, 0, MAX_TERMINAL);
-    length = 0;                 /* clear the buffer! */
+    /* memset(input, 0, MAX_TERMINAL); */
+    length = 0;                         /* clear the buffer! */
     sti();
     return i;
 }

@@ -2,6 +2,7 @@
 #define _FILESYS_H
 
 #include "lib.h"
+#include "x86_desc.h"
 
 #define FS_BLOCK_SIZE (4 << 10)     /* 4kb */
 #define FS_MAX_LEN 32
@@ -11,13 +12,6 @@ typedef struct {
     uint32_t file_size;             /* in bytes */
     uint32_t data_blocks[1023];     /* (4096 - sizeof(uint32_t)) / 4 */
 } inode_t;
-
-typedef struct {
-    uint8_t file_name[32];
-    uint32_t file_type;
-    uint32_t inode_num;
-    uint8_t reserved[24];
-} dentry_t;
 
 typedef struct {
     uint8_t data[FS_BLOCK_SIZE];

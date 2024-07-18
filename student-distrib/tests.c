@@ -73,7 +73,7 @@ int terminal_test() {
 	uint8_t buf[128];
 	int32_t count;
 	while ((count = terminal_read(0, buf, 128)) != -1) {
-		terminal_write(0, buf, count);
+		terminal_write(0, buf, count);	/* print what we got from user input */
 	}
 	return 0;
 }
@@ -81,7 +81,7 @@ int terminal_test() {
 
 int rtc_test(char ch) {
 	TEST_HEADER;
-	rtc_open(NULL);
+	rtc_open(0);
 
 	int32_t freq, i, j, max_count = 10;
 	char seq[RTC_MAX_RATE + 1] = {ch, '\0'};
@@ -99,7 +99,7 @@ int rtc_test(char ch) {
 		}
 	}
 
-	rtc_close(NULL);
+	rtc_close(0);
 	return PASS;
 }
 

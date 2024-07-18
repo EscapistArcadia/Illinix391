@@ -24,6 +24,7 @@ void rtc_set_rate(uint32_t rate) {
         return;
     }
 
+    /* reference: osdev */
     cli();
     outb(RTC_DISABLE_NMI | RTC_REG_A, RTC_COMMAND);
     char a = inb(RTC_DATA);
@@ -32,11 +33,11 @@ void rtc_set_rate(uint32_t rate) {
     sti();
 }
 
-uint32_t rtc_fired = 0;
+uint32_t rtc_fired = 0;             /* records the status of the rtc */
 
 void rtc_handler() {
     outb(RTC_REG_C, RTC_COMMAND);
-    inb(RTC_DATA);
+    inb(RTC_DATA);                  /* refreshes the RTC, or squeezed*/
 
     rtc_fired = 1;
 
@@ -97,7 +98,7 @@ int32_t rtc_write(int32_t fd, const void *buf, uint32_t count) {
         return -1;
     }
     
-    uint32_t log2;
+    uint32_t log2;                      /* checks the log2 of power-of-2 */
     for (log2 = -1; freq; ++log2, freq = freq >> 1);
     rtc_set_rate(16 - log2);
 

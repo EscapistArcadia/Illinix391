@@ -10,8 +10,8 @@ data_block_t *data_blocks;
  * @param start the boot block address
  */
 void file_system_init(uint32_t start) {
-    boot_block = (boot_block_t *)start;
-    inode_blocks = (inode_t *)(boot_block + 1);
+    boot_block = (boot_block_t *)start;         /* records the starting address */
+    inode_blocks = (inode_t *)(boot_block + 1); /* skips the boot block */
     data_blocks = (data_block_t *)(boot_block) + boot_block->inode_count + 1;
 }
 
@@ -33,6 +33,7 @@ int32_t read_dentry_by_name(const uint8_t *file_name, dentry_t *dentry) {
     
     /* compares file_name to file name in each dentry */
     for (i = 0, pos = boot_block->dentries; i < boot_block->dentry_count; ++i, ++pos) {
+        /* the file name should be short enough, and matches with the parameter */
         for (j = 0, left = file_name, right = pos->file_name;
              !(j & (~(FS_MAX_LEN - 1))) && *left && *left == *right;
              ++j, ++left, ++right);
@@ -109,7 +110,7 @@ int32_t read_data(uint32_t inode, uint32_t offset, uint8_t *buf, uint32_t len) {
  * @brief opens a file at \p path
  * 
  * @param path the directory of the file
- * @return 0 if success, 1 if fail
+ * @return inode number, ONLY FOR CP2
  */
 int32_t file_open(const uint8_t *file_name) {
     dentry_t dentry;
