@@ -30,18 +30,46 @@ typedef struct file_t {
 
 typedef struct pcb_t {
     uint8_t present;
+    uint8_t vidmap;
+    uint8_t rtc;
+    uint8_t rtc_fired;
+    uint32_t rtc_curr;
+    uint32_t rtc_rate;
     int32_t pid;
     struct pcb_t *parent;       /* parent's pcb */
+    uint32_t ebp;               /* ebp for scheduling */
     uint32_t parent_ebp;        /* parent's ebp as the program quit */
     uint32_t esp0;              /* the tss.esp0 for the process */
     uint8_t argv[128];          /* argument passed by the user */
     file_t files[8];            /* files opened by the process */
 } pcb_t;
 
+/**
+ * @brief pcb of the executing process
+ */
 pcb_t *get_current_pcb();
+
+typedef struct terminal_t {
+    int32_t pid;
+    struct {
+        uint8_t content[MAX_TERMINAL];
+        uint32_t length;
+        uint32_t in_progress;           /* if user is inputing in this terminal */
+        uint32_t to_be_halt;            /* if user pressed Ctrl + C */
+    } input;
+    struct {
+        int x;
+        int y;
+    } cursor;
+} terminal_t;
+
+extern terminal_t terms[TERMINAL_COUNT];
+extern uint32_t shown_term_id;                 /* index of terminal showing on the screen */
+extern uint32_t active_term_id;                /* index of terminal executing on the core */
 
 int32_t printf(int8_t *format, ...);
 void putc(uint8_t c);
+void echo(uint8_t c);
 int32_t puts(int8_t *s);
 int8_t *itoa(uint32_t value, int8_t* buf, int32_t radix);
 int8_t *strrev(int8_t* s);
@@ -53,6 +81,7 @@ void get_screen_coordinate(int *x, int *y);
 void set_screen_coordinate(int x, int y);
 void get_cursor_pos(int *x, int *y);
 void set_cursor_pos(int x, int y);
+void switch_terminal(uint32_t next_id);
 
 void* memset(void* s, int32_t c, uint32_t n);
 void* memset_word(void* s, int32_t c, uint32_t n);

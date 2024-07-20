@@ -3,6 +3,8 @@
 #include "rtc.h"
 #include "syscall.h"
 
+#define PIT_INTR_INDEX 0x20
+
 #define INIT_IDT_UNPRESENT(i) do {                      \
     idt[i].present = 0;                                 \
 } while (0)                                             \
@@ -205,6 +207,14 @@ void mystery() {
         "popal\n"
         "popfl\n"
         "iret\n"
+
+        "pit_int_wrapper:\n"
+        "pushfl\n"
+        "pushal\n"
+        "call pit_handler\n"
+        "popal\n"
+        "popfl\n"
+        "iret\n"
         :
         :
         : "%al", "memory"
@@ -302,6 +312,7 @@ void idt_init() {
         INIT_IDT_UNPRESENT(i);
     }
 
+    INIT_INTERRUPT(PIT_INTR_INDEX, pit_int_wrapper);
     INIT_INTERRUPT(KEYBOARD_INTR_INDEX, keyboard_int_wrapper);
     INIT_INTERRUPT(RTC_INTR_INDEX, rtc_int_wrapper);
     

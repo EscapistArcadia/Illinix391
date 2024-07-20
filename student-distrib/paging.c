@@ -24,7 +24,7 @@ void paging_init() {
         page_table_user_vidmem[i].page_base_address = i;
     }
     page_table_kernel_vidmem[VIDMEM_INDEX].present = 1;
-    page_table_user_vidmem[VIDMEM_INDEX].present = 1;
+    page_table_user_vidmem[VIDMEM_INDEX].present = 0;
     page_table_user_vidmem[VIDMEM_INDEX].user_supervisor = 1;
     page_table_user_vidmem[VIDMEM_INDEX].read_write = 1;
 

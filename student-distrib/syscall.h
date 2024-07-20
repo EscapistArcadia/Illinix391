@@ -4,7 +4,7 @@
 #include "lib.h"
 
 #define EXECUTABLE_MAGIC        0x464C457F          /* the first four bytes of executable files */
-#define MAX_PROCESS             3                   /* 1 terminal and 2 user applications */
+#define MAX_PROCESS             6                   /* 1 terminal and 2 user applications */
 
 #define KERNEL_STACK            0x800000
 #define KERNEL_STACK_SIZE       0x2000
@@ -14,6 +14,8 @@
 
 #define USER_ENTRY              (0x8000000 >> 22)   /* user's page directory entry */
 #define USER_STACK              0x8400000           /* starting address of user entry */
+
+extern pcb_t *pcbs[MAX_PROCESS];
 
 /**
  * @brief terminates the currently executing user program, with exit code \p status

@@ -153,7 +153,7 @@ void launch_tests(){
 	// TEST_OUTPUT("list_file_test", list_file_test());
 	// TEST_OUTPUT("terminal_test", terminal_test());
 	
-	execute((const uint8_t *)"               shell    ");
+	// execute((const uint8_t *)"               shell    ");
 
 	// launch your tests here
 }

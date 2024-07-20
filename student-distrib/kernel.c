@@ -8,6 +8,7 @@
 #include "idt.h"
 #include "paging.h"
 #include "filesys.h"
+#include "sched.h"
 #include "debug.h"
 #include "tests.h"
 
@@ -161,6 +162,9 @@ void entry(unsigned long magic, unsigned long addr) {
     printf("Enabling Interrupts\n");
     sti();
     
+    clear();
+    initiate_shells();
+
 #ifdef RUN_TESTS
     /* Run tests */
     launch_tests();

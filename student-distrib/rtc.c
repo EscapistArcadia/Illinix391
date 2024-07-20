@@ -1,5 +1,6 @@
 #include "rtc.h"
 #include "i8259.h"
+#include "syscall.h"
 
 #define RTC_COMMAND     0x70
 #define RTC_DATA        0x71
@@ -9,15 +10,7 @@
 #define RTC_REG_C       0x0C
 #define RTC_DISABLE_NMI 0x80
 
-void rtc_init() {
-    cli();
-    outb(RTC_DISABLE_NMI | RTC_REG_B, RTC_COMMAND);
-    char b = inb(RTC_DATA);
-    outb(RTC_DISABLE_NMI | RTC_REG_B, RTC_COMMAND);
-    outb(b | 0x40, RTC_DATA);       /* enables PIE bit in B*/
-    enable_irq(RTC_IRQ);
-    sti();
-}
+extern pcb_t *pcbs[MAX_PROCESS];
 
 void rtc_set_rate(uint32_t rate) {
     if (rate < 2 || rate > 15) {
@@ -33,13 +26,31 @@ void rtc_set_rate(uint32_t rate) {
     sti();
 }
 
-uint32_t rtc_fired = 0;             /* records the status of the rtc */
+void rtc_init() {
+    cli();
+    outb(RTC_DISABLE_NMI | RTC_REG_B, RTC_COMMAND);
+    char b = inb(RTC_DATA);
+    outb(RTC_DISABLE_NMI | RTC_REG_B, RTC_COMMAND);
+    outb(b | 0x40, RTC_DATA);       /* enables PIE bit in B*/
+    enable_irq(RTC_IRQ);
+    sti();
+    rtc_set_rate(RTC_MIN_RATE);
+}
 
 void rtc_handler() {
     outb(RTC_REG_C, RTC_COMMAND);
     inb(RTC_DATA);                  /* refreshes the RTC, or squeezed*/
 
-    rtc_fired = 1;
+    int32_t pid;
+    for (pid = 3; pid < 6; ++pid) {
+        if (pcbs[pid]->present && pcbs[pid]->rtc && !pcbs[pid]->rtc_fired) {
+            if (pcbs[pid]->rtc_curr <= 1) {
+                ++pcbs[pid]->rtc_fired;
+            } else {
+                --pcbs[pid]->rtc_curr;    /* normal decrement */
+            }
+        }
+    }
 
     send_eoi(RTC_IRQ);
 }
@@ -51,7 +62,10 @@ void rtc_handler() {
  * @return 0
  */
 int32_t rtc_open(const uint8_t *path) {
-    rtc_set_rate(RTC_MAX_RATE);
+    pcb_t *curr = get_current_pcb();
+    curr->rtc = 1;
+    curr->rtc_fired = 0;
+    curr->rtc_curr = curr->rtc_rate = RTC_MAX_FREQ / RTC_MIN_FREQ;
     return 0;
 }
 
@@ -62,6 +76,7 @@ int32_t rtc_open(const uint8_t *path) {
  * @return 0
  */
 int32_t rtc_close(int32_t fd) {
+    get_current_pcb()->rtc = 0;
     return 0;
 }
 
@@ -74,8 +89,19 @@ int32_t rtc_close(int32_t fd) {
  * @return [ignored] when rtc is fired
  */
 int32_t rtc_read(int32_t fd, void *buf, uint32_t count) {
-    while (!rtc_fired);
-    rtc_fired = 0;
+    pcb_t *curr = get_current_pcb();
+    curr->rtc_fired = 0;
+    while (0xDEADBEEF) {
+        if (!curr->rtc) {
+            return -1;
+        }
+        if (curr->rtc_fired > 0) {
+            --curr->rtc_fired;
+            curr->rtc_curr = curr->rtc_rate;
+            return 0;
+        }
+    }
+    
     return 0;
 }
 
@@ -98,9 +124,14 @@ int32_t rtc_write(int32_t fd, const void *buf, uint32_t count) {
         return -1;
     }
     
-    uint32_t log2;                      /* checks the log2 of power-of-2 */
-    for (log2 = -1; freq; ++log2, freq = freq >> 1);
-    rtc_set_rate(16 - log2);
-
+    // uint32_t log2;                      /* checks the log2 of power-of-2 */
+    // for (log2 = -1; freq; ++log2, freq = freq >> 1);
+    
+    pcb_t *curr = get_current_pcb();
+    if (!curr->rtc) {
+        return -1;
+    }
+    
+    curr->rtc_curr = curr->rtc_rate = RTC_MAX_FREQ / freq;
     return 0;
 }

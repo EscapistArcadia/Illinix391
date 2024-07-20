@@ -2,8 +2,11 @@
  * vim:ts=4 noexpandtab */
 
 #include "lib.h"
+#include "paging.h"
+#include "syscall.h"
 
 #define VIDEO       0xB8000
+#define VIDEO_SIZE  0x1000
 #define NUM_COLS    80
 #define NUM_ROWS    25
 #define ATTRIB      0x7
@@ -30,6 +33,12 @@ void clear(void) {
     for (i = 0; i < NUM_ROWS * NUM_COLS; i++) {
         *(uint8_t *)(video_mem + (i << 1)) = ' ';
         *(uint8_t *)(video_mem + (i << 1) + 1) = ATTRIB;
+    }
+    terms[shown_term_id].cursor.x = 0;
+    terms[shown_term_id].cursor.y = 0;
+    if (shown_term_id == active_term_id) {
+        screen_x = 0;
+        screen_y = 0;
     }
 }
 
@@ -242,7 +251,29 @@ void putc(uint8_t c) {
         // screen_x %= NUM_COLS;
         // screen_y = (screen_y + (screen_x / NUM_COLS)) % NUM_ROWS;
     }
-    set_cursor_pos(screen_x, screen_y);
+    if (get_current_pcb()->pid == terms[shown_term_id].pid) {
+        terms[shown_term_id].cursor.x = screen_x;
+        terms[shown_term_id].cursor.y = screen_y;
+        set_cursor_pos(screen_x, screen_y);
+    }
+}
+
+void echo(uint8_t c) {
+    if (active_term_id == shown_term_id) {
+        putc(c);
+    } else {
+        int cache_x = screen_x, cache_y = screen_y;
+        screen_x = terms[shown_term_id].cursor.x;
+        screen_y = terms[shown_term_id].cursor.y;
+        video_mem = (char *)(VIDEO + VIDEO_SIZE);
+        putc(c);
+        video_mem = (char *)VIDEO;
+        terms[shown_term_id].cursor.x = screen_x;
+        terms[shown_term_id].cursor.y = screen_y;
+        set_cursor_pos(screen_x, screen_y);
+        screen_x = cache_x;
+        screen_y = cache_y;
+    }
 }
 
 void get_screen_coordinate(int *x, int *y) {
@@ -276,6 +307,62 @@ void set_cursor_pos(int x, int y) {
 	outb((uint8_t) (pos & 0xFF), 0x3D5);
 	outb(0x0E, 0x3D4);
 	outb((uint8_t) ((pos >> 8) & 0xFF), 0x3D5);
+}
+
+terminal_t terms[TERMINAL_COUNT];
+uint32_t shown_term_id = 0;              /* index of terminal showing on the screen */
+uint32_t active_term_id = 0;             /* index of terminal executing on the core */
+
+void switch_terminal(uint32_t next_id) {
+    if (next_id == shown_term_id) {
+        return;
+    }
+
+    cli();
+    memcpy((void *)(VIDEO + (shown_term_id + 2) * VIDEO_SIZE),
+           (const void *)(VIDEO + VIDEO_SIZE), VIDEO_SIZE);
+    memcpy((void *)(VIDEO + VIDEO_SIZE),
+           (const void *)(VIDEO + (next_id + 2) * VIDEO_SIZE), VIDEO_SIZE);
+           
+    get_screen_coordinate(&terms[active_term_id].cursor.x, &terms[active_term_id].cursor.y);
+    page_table_kernel_vidmem[VIDMEM_INDEX].page_base_address = VIDMEM_INDEX;
+    page_table_user_vidmem[VIDMEM_INDEX].page_base_address = VIDMEM_INDEX;
+    set_screen_coordinate(terms[next_id].cursor.x, terms[next_id].cursor.y);
+    set_cursor_pos(terms[next_id].cursor.x, terms[next_id].cursor.y);
+
+    asm volatile (                                      /* flushes the TLB */
+        "movl %%cr3, %%eax\n"
+        "movl %%eax, %%cr3\n"
+        :::"eax"
+    );
+
+    pcb_t *curr = get_current_pcb(), *next = pcbs[terms[next_id].pid];
+    active_term_id = shown_term_id = next_id;
+
+    asm volatile (
+        "movl %%ebp, %0\n"
+        : "=r"(curr->ebp)
+    );
+
+    curr->esp0 = tss.esp0;
+    tss.esp0 = next->esp0;
+    page_directories[USER_ENTRY].MB.page_base_address = 2 + next->pid;
+    page_table_user_vidmem[VIDMEM_INDEX].present = next->vidmap;
+    
+    asm volatile (                                      /* flushes the TLB */
+        "movl %%cr3, %%eax\n"
+        "movl %%eax, %%cr3\n"
+        :::"eax"
+    );
+
+    asm volatile (
+        "movl %0, %%ebp\n"
+        "sti\n"
+        "leave\n"
+        "ret\n"
+        : 
+        : "r" (next->ebp)
+    );
 }
 
 /* int8_t* itoa(uint32_t value, int8_t* buf, int32_t radix);

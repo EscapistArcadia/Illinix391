@@ -8,6 +8,11 @@ pcb_t *pcbs[MAX_PROCESS] = {
     (pcb_t *)(KERNEL_STACK - (0x00 + 1) * KERNEL_STACK_SIZE),
     (pcb_t *)(KERNEL_STACK - (0x01 + 1) * KERNEL_STACK_SIZE),
     (pcb_t *)(KERNEL_STACK - (0x02 + 1) * KERNEL_STACK_SIZE),
+    (pcb_t *)(KERNEL_STACK - (0x03 + 1) * KERNEL_STACK_SIZE),
+    (pcb_t *)(KERNEL_STACK - (0x04 + 1) * KERNEL_STACK_SIZE),
+    (pcb_t *)(KERNEL_STACK - (0x05 + 1) * KERNEL_STACK_SIZE),
+    // (pcb_t *)(KERNEL_STACK - (0x06 + 1) * KERNEL_STACK_SIZE),
+    // (pcb_t *)(KERNEL_STACK - (0x07 + 1) * KERNEL_STACK_SIZE),
 };
 
 int32_t null_open(const uint8_t *file_name) {return -1;}
@@ -64,21 +69,28 @@ file_operations_t rtc_ops = {
  * @return 0 if success, -1 if fail
  */
 int32_t halt(uint8_t status) {
+    cli();
     int i;
     pcb_t *pcb = get_current_pcb();
-    
-    if (pcb->pid == 0) {                                /* never closes the terminal */
-        return 0;
-    }
 
     /* *************** Reclaim the PCB & Resources *************** */
     pcb->present = 0;
+    pcb->vidmap = 0;
+    pcb->rtc = 0;
     for (i = 2; i < 8; ++i) {
         if (pcb->files[i].present) {
             pcb->files[i].ops->close(i);                /* closes all files */
             pcb->files[i].present = 0;                  /* reclaims all resources*/
         }
     }
+    
+    terms[active_term_id].input.to_be_halt = 0;
+    if (pcb->pid < TERMINAL_COUNT) {                                /* never closes the terminal */
+        pcb->present = 0;
+        execute((const uint8_t *)"shell");
+    }
+
+    terms[active_term_id].pid = pcb->parent->pid;
 
     /* *************** Restore Paging For Parent *************** */
     page_directories[USER_ENTRY].MB.page_base_address = 2 + pcb->parent->pid;
@@ -97,8 +109,6 @@ int32_t halt(uint8_t status) {
         asm volatile (
             "movl $0x100, %%eax \n"                         /* assignes the return value */
             "movl %0, %%ebp     \n"                         /* set the context to execute() */
-            // "leave\n"                                    /* %esp = %ebp = pcb->parent_ebp, popl %ebp */
-            // "ret\n"                                      /* popl %eip */
             :
             : "r"(pcb->parent_ebp)
             : "%eax"
@@ -114,6 +124,7 @@ int32_t halt(uint8_t status) {
     }
  
     asm volatile (
+        "sti    \n"
         "leave  \n"
         "ret    \n"
     );
@@ -154,6 +165,7 @@ int32_t execute(const uint8_t *command) {
         *argv_pos = 0;
     }
 
+    cli();
     /* *************** Check Excutability *************** */
     uint32_t magic;
     dentry_t den;
@@ -175,7 +187,7 @@ int32_t execute(const uint8_t *command) {
 
     pcb->present = 1;
     pcb->pid = pid;
-    pcb->parent = pid == 0 ? NULL : get_current_pcb();  /* pid = 0 => terminal */
+    pcb->parent = pid < TERMINAL_COUNT ? NULL : get_current_pcb();  /* pid = 0 => terminal */
     asm volatile (
         "movl %%ebp, %0"                                /* records the return address */
         : "=g"(pcb->parent_ebp)
@@ -190,6 +202,7 @@ int32_t execute(const uint8_t *command) {
     for (i = 2; i < 8; ++i) {
         pcb->files[i].present = 0;
     }
+    terms[active_term_id].pid = pid;
 
     /* *************** Set Up Paging *************** */
     page_directories[USER_ENTRY].MB.present = 1;
@@ -368,6 +381,20 @@ int32_t vidmap(uint8_t** start) {
     if (!start || ((uint32_t)start >> 22) != USER_ENTRY) {
         return -1;
     }
+
+    pcb_t *curr = get_current_pcb();
+    curr->vidmap = 1;
+    page_table_user_vidmem[VIDMEM_INDEX].present = 1;
+    if (active_term_id == shown_term_id) {
+        page_table_user_vidmem[VIDMEM_INDEX].page_base_address = VIDMEM_INDEX;
+    } else {
+        page_table_user_vidmem[VIDMEM_INDEX].page_base_address = VIDMEM_INDEX + curr->pid + 2;
+    }
+    asm volatile (                                      /* flushes the TLB */
+        "movl %%cr3, %%eax\n"                           /* copies the shell's image */
+        "movl %%eax, %%cr3\n"
+        :::"eax"
+    );
 
     *start = (uint8_t *)(((VIDMEM_INDEX << 22) | (VIDMEM_INDEX << 12)) & 0xFFFFF000) ;
     return 0;

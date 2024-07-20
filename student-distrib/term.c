@@ -2,10 +2,6 @@
 
 #include "x86_desc.h"
 
-extern uint8_t input[MAX_TERMINAL];
-extern uint32_t length;
-extern volatile uint32_t input_in_progress;
-
 /**
  * @brief opens the terminal (does nothing)
  * 
@@ -39,18 +35,18 @@ int32_t terminal_read(int32_t file, void* buf, uint32_t count) {
         return -1;
     }
 
-    input_in_progress = 1;              /* starts recording and waiting */
-    while (input_in_progress);
+    terms[active_term_id].input.in_progress = 1;            /* starts recording and waiting */
+    while (terms[active_term_id].input.in_progress);
 
-                                        /* checked length in keyboard handler */
-    if (count > length) {               /* set null-termination of string */
-        *((uint8_t *)buf + length) = 0;
-        count = length;
+                                                            /* checked length in keyboard handler */
+    if (count > terms[active_term_id].input.length) {       /* set null-termination of string */
+        *((uint8_t *)buf + terms[active_term_id].input.length) = 0;
+        count = terms[active_term_id].input.length;
     }
 
-    memcpy(buf, input, count);          /* copy and empty the input buffer */
-    length = 0;                         /* start writing at head */
-    input_in_progress = 1;
+    memcpy(buf, terms[active_term_id].input.content, count);/* copy and empty the input buffer */
+    terms[active_term_id].input.length = 0;                 /* start writing at head */
+    terms[active_term_id].input.in_progress = 1;
     return count;
 }
 
@@ -72,8 +68,7 @@ int32_t terminal_write(int32_t file, const void* buf, uint32_t count) {
     for (i = 0; i < count; ++i) {       /* writes all buf, even though '\0' */
         putc(((char *)buf)[i]);
     }
-    /* memset(input, 0, MAX_TERMINAL); */
-    length = 0;                         /* clear the buffer! */
+    terms[active_term_id].input.length = 0;                         /* clear the buffer! */
     sti();
     return i;
 }

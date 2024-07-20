@@ -6,7 +6,7 @@
 #define RTC_IRQ             8       /* the irq # of keyboard in i8259*/
 #define RTC_INTR_INDEX      0x28    /* interrupt # for keyboard interrupt */
 
-#define RTC_MIN_RATE    3
+#define RTC_MIN_RATE    6
 #define RTC_MAX_RATE    15
 
 #define RTC_MAX_FREQ    (32768 >> (RTC_MIN_RATE - 1))

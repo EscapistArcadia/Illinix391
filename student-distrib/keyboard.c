@@ -91,6 +91,10 @@ void keyboard_handler() {
     else if (scancode == SC_CAPSLOCK) {
         keyboard_bitmap &= ~(KBF_CAPSLOCK);
     }
+    /* tab */
+    else if (scancode == SC_LEFTALT) {
+        keyboard_bitmap |= KBF_ALT;
+    }
     /* control */
     else if (scancode == SC_LEFTCONTROL) {
         keyboard_bitmap |= KBF_CONTROL;
@@ -99,20 +103,24 @@ void keyboard_handler() {
     }
     /* tab */
     else if (scancode == SC_TAB) {
-        putc('\t');
-        input[length++] = '\t';
+        echo('\t');
+        terms[shown_term_id].input.content[terms[shown_term_id].input.length++] = '\t';
     }
     /* backspace */
     else if (scancode == SC_BACKSPACE) {
-        if (length > 0) {
-            putc('\b');
-            input[--length] = 0;
+        if (terms[shown_term_id].input.length > 0) {
+            echo('\b');
+            terms[shown_term_id].input.content[--terms[shown_term_id].input.length] = 0;
         }
     }
     /* enter */
     else if (scancode == SC_ENTER) {
-        putc('\n');
-        input_in_progress = 0;
+        echo('\n');
+        terms[shown_term_id].input.in_progress = 0;
+    }
+    /* switch terminal */
+    else if (scancode >= 0x3B && scancode <= 0x3D) {
+        switch_terminal(scancode - 0x3B);
     }
     /* default visible chars */
     else {
@@ -121,16 +129,14 @@ void keyboard_handler() {
                 if (scancode == 0x26) {             /* Ctrl+L: clean the screen */
                     clear();
                 } else if (scancode == 0x2E) {
-                    memset(input, 0, MAX_TERMINAL);
-                    send_eoi(KEYBOARD_IRQ);
-                    halt(220);
+                    terms[shown_term_id].input.to_be_halt = 1;
                 }
             } else {
                 char ch = (keyboard_bitmap & KBF_LEFTSHIFT || keyboard_bitmap & KBF_RIGHTSHIFT
                             ? visible_scancode_map_shifted : visible_scancode_map)[scancode];
-                putc(ch);                /* checks if shift is down */
-                if (length < MAX_TERMINAL) {
-                    input[length++] = ch;
+                echo(ch);                /* checks if shift is down */
+                if (terms[shown_term_id].input.length < MAX_TERMINAL) {
+                    terms[shown_term_id].input.content[terms[shown_term_id].input.length++] = ch;
                 }
             }
         }

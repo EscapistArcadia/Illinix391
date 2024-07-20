@@ -23,7 +23,7 @@
 #define NUM_VEC     256
 
 #define MAX_TERMINAL 128
-#define TERMINAL_COUNT 4
+#define TERMINAL_COUNT 3
 
 #ifndef ASM
 
