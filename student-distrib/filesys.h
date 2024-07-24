@@ -32,13 +32,41 @@ typedef struct {
     dentry_t dentries[63];          /* (4096 - 64) / 64 */
 } boot_block_t;
 
+boot_block_t *boot_block;
+inode_t *inode_blocks;
+data_block_t *data_blocks;
+
+uint8_t inode_bitmap[64];
+uint8_t data_block_bitmap[64];
+
+/**
+ * @brief reads \p count of sectors starting at \p index to \p buf
+ * the buffer size should be count * 512 (ATA_SECTOR_SIZE)
+ * 
+ * @param index the starting index of the sector to read
+ * @param count the count of sectors to read
+ * @param buf the destination buffer
+ * @return count of bytes read
+ */
+uint32_t read_ata_sectors(uint32_t index, uint32_t count, uint8_t *buf);
+
+/**
+ * @brief writes \p count of sectors starting at \p index from \p buf
+ * the buffer size should be count * 512 (ATA_SECTOR_SIZE)
+ * 
+ * @param index the starting index of the sector to write
+ * @param count the count of sectors to write
+ * @param buf the source buffer
+ * @return count of bytes written
+ */
+uint32_t write_ata_sectors(uint32_t index, uint32_t count, const uint8_t *buf);
+
 /**
  * @brief initializes the file system
  * 
  * @param start the boot block address
  */
 void file_system_init(uint32_t start);
-
 
 /**
  * @brief reads the dentry corresponding to \p file_name
@@ -141,7 +169,6 @@ int32_t dir_read(int32_t fd, void *buf, uint32_t count);
  * @return -1 TODO: make file system writable.
  */
 int32_t dir_write(int32_t fd, const void *buf, uint32_t count);
-
 
 /**
  * @brief gets the size of the file at \p fd

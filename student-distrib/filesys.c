@@ -1,19 +1,15 @@
 #include "filesys.h"
 
-boot_block_t *boot_block;
-inode_t *inode_blocks;
-data_block_t *data_blocks;
-
 #define ATA_DATA                0x1F0
 #define ATA_SECTOR_COUNT        0x1F2
 #define ATA_LBA_LOW             0x1F3
 #define ATA_LBA_MID             0x1F4
 #define ATA_LBA_HIGH            0x1F5
-#define ATA_DRIVE_SELECT       0x1F6
+#define ATA_DRIVE_SELECT        0x1F6
 #define ATA_STATUS              0x1F7
 
-#define ATA_MASTER_DRIVE       0xA0
-#define ATA_SLAVE_DRIVE        0xB0
+#define ATA_MASTER_DRIVE        0xA0
+#define ATA_SLAVE_DRIVE         0xB0
 
 #define ATA_FLAG_STATUS_ERROR   (1 << 0)
 #define ATA_FLAG_STATUS_INDEX   (1 << 1)
@@ -30,9 +26,6 @@ data_block_t *data_blocks;
 #define ATA_SECTOR_BOUND        0x0FFFFFFF
 
 #define ATA_BOOT_BLOCK_SIZE     (16 * ATA_SECTOR_COUNT)
-
-uint8_t inode_bitmap[64];
-uint8_t data_block_bitmap[64];
 
 /**
  * @brief reads \p count of sectors starting at \p index to \p buf
@@ -115,6 +108,8 @@ uint32_t write_ata_sectors(uint32_t index, uint32_t count, const uint8_t *buf) {
  */
 void file_system_init(uint32_t start) {
     boot_block = (boot_block_t *)start;         /* records the starting address */
+
+    read_ata_sectors(5000, boot_block->inode_count + boot_block->data_block_count + 1, (uint8_t *)boot_block);
     inode_blocks = (inode_t *)(boot_block + 1); /* skips the boot block */
     data_blocks = (data_block_t *)(boot_block) + boot_block->inode_count + 1;
 
@@ -135,7 +130,7 @@ void file_system_init(uint32_t start) {
  * 
  * @param file_name 
  * @param dentry the dentry returned
- * @return 0 if succeed, -1 if fail
+ * @return dentry index if succeed, -1 if fail
  */
 int32_t read_dentry_by_name(const uint8_t *file_name, dentry_t *dentry) {
     if (file_name == NULL) {
@@ -154,7 +149,7 @@ int32_t read_dentry_by_name(const uint8_t *file_name, dentry_t *dentry) {
              ++j, ++left, ++right);
         if (!*left && (!*right || j == FS_MAX_LEN)) {
             memcpy(dentry, pos, sizeof(dentry_t));
-            return 0;
+            return pos - boot_block->dentries;
         }
     }
     return -1;
@@ -221,11 +216,21 @@ int32_t read_data(uint32_t inode, uint32_t offset, uint8_t *buf, uint32_t len) {
     }
 }
 
-uint32_t get_free_datablock() {
+uint32_t find_free_datablock() {
     uint32_t db;
     for (db = 1; db < boot_block->data_block_count; ++db) {
         if (!data_block_bitmap[db]) {
             return db;
+        }
+    }
+    return -1;
+}
+
+uint32_t find_free_inode() {
+    uint32_t inode;
+    for (inode = 1; inode < boot_block->inode_count; ++inode) {
+        if (!data_block_bitmap[inode]) {
+            return inode;
         }
     }
     return -1;
@@ -253,17 +258,20 @@ int32_t write_data(uint32_t inode, uint32_t offset, const uint8_t *buf, uint32_t
         memcpy(data_blocks[*block].data + offset, buf, len);
     } else {
         const uint8_t *pos = buf + remain;          /* records the position */
-        memcpy(data_blocks[*(block++)].data + offset, buf, remain);
+        if (!*block && !(*block = find_free_datablock())) {
+            return -1;
+        }
 
-        for (remain = len - remain, *block = get_free_datablock();
+        memcpy(data_blocks[*(block++)].data + offset, buf, remain);
+        for (remain = len - remain, *block = find_free_datablock();
              remain & (~(FS_BLOCK_SIZE - 1));
-             *(++block) = get_free_datablock(), remain -= FS_BLOCK_SIZE, pos += FS_BLOCK_SIZE) {
+             *(++block) = find_free_datablock(), remain -= FS_BLOCK_SIZE, pos += FS_BLOCK_SIZE) {
             memcpy(data_blocks[*block].data, pos, FS_BLOCK_SIZE);
         }
         memcpy(data_blocks[*block].data, pos, remain);
     }
     /* TODO: find a way to write only necessary block(s) */
-    // write_ata_sectors(5000, boot_block->inode_count + boot_block->data_block_count + 1, (const uint8_t *)boot_block);
+    write_ata_sectors(5000, boot_block->inode_count + boot_block->data_block_count + 1, (const uint8_t *)boot_block);
     return len;
 }
 

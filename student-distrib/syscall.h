@@ -95,4 +95,20 @@ int32_t set_handler(int32_t signum, void* handler_address);
 
 int32_t sigreturn(void);
 
+/**
+ * @brief requested to create a new file with specified \p file_name
+ * 
+ * @param file_name the name of the file
+ * @return descriptor of the file for the process
+ */
+int32_t create(const uint8_t *file_name);
+
+/**
+ * @brief delete an existing file from the file system
+ * 
+ * @param file_name the name of the file
+ * @return 0 if success, -1 if fail
+ */
+int32_t delete(const uint8_t *file_name);
+
 #endif

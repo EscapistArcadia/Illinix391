@@ -42,7 +42,9 @@ void *syscall_entries[] = {
     getargs,
     vidmap,
     set_handler,
-    sigreturn
+    sigreturn,
+    create,
+    delete
 };
 
 uint8_t exception_occurred = 0;
@@ -251,7 +253,7 @@ void mystery() {
         
         "cmpl $1, %%eax\n"  /* checks the interrupt number */
         "jb bad_sysc_num\n"
-        "cmpl $10, %%eax\n"
+        "cmpl $12, %%eax\n"
         "ja bad_sysc_num\n"
 
         "pushw $0x18\n"     /* movw $0x18, %ds */

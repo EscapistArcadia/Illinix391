@@ -62,6 +62,12 @@ file_operations_t rtc_ops = {
     .write = rtc_write
 };
 
+static file_operations_t *const file_ops_map[] = {
+    &rtc_ops,
+    &dir_ops,
+    &file_ops
+};
+
 /**
  * @brief terminates the currently executing user program, with exit code \p status
  * 
@@ -298,12 +304,6 @@ int32_t write(int32_t fd, const void* buf, int32_t count) {
  * @return int32_t the file descriptor to the process
  */
 int32_t open(const uint8_t* file_name) {
-    static file_operations_t *const ops_map[] = {
-        &rtc_ops,
-        &dir_ops,
-        &file_ops
-    };
-
     pcb_t *curr = get_current_pcb();
 
     int i;
@@ -313,13 +313,13 @@ int32_t open(const uint8_t* file_name) {
             if (read_dentry_by_name(file_name, &den) == -1) {       /* checks the existence & file type */
                 return -1;
             }
-
-            if (ops_map[den.file_type]->open(file_name) == -1) {
+            
+            if (file_ops_map[den.file_type]->open(file_name) == -1) {
                 return -1;
             }
 
             /* set up file structure */
-            curr->files[i].ops = ops_map[den.file_type];
+            curr->files[i].ops = file_ops_map[den.file_type];
             curr->files[i].inode = den.inode_num;
             curr->files[i].file_pos = 0;
             curr->files[i].present = 1;
@@ -403,3 +403,90 @@ int32_t vidmap(uint8_t** start) {
 int32_t set_handler(int32_t signum, void *handler_address) { return 0; }
 
 int32_t sigreturn(void) { return 0; }
+
+/**
+ * @brief requested to create a new file with specified \p file_name
+ * 
+ * @param file_name the name of the file
+ * @return descriptor of the file for the process
+ */
+int32_t create(const uint8_t *file_name) {
+    pcb_t *curr = get_current_pcb();
+
+    int i;
+    for (i = 2; i < 8; ++i) {
+        if (!curr->files[i].present) {
+            dentry_t den;
+            if (read_dentry_by_name(file_name, &den) != -1) {       /* checks the existence & file type */
+                return -1;
+            }
+
+            extern uint32_t find_free_inode();
+
+            den.inode_num = find_free_inode();                      /* allocates a free inode */
+            if (den.inode_num == -1) {                              /* no inode in free */
+                return -1;
+            }
+            uint8_t *pos, len;
+            for (pos = den.file_name, len = 0; *file_name && len < FS_MAX_LEN; ++file_name, ++pos, ++len) {
+                *pos = *file_name;
+            }
+            for (; len < FS_MAX_LEN; ++len, ++pos) {                    /* copies file name to dentry and set padding 0*/
+                *pos = 0;
+            }
+
+            den.file_type = 2;                                      /* only file can be created */
+            
+            inode_blocks[den.inode_num].file_size = 0;              /* puts dentry and inode into fs */
+            memcpy(&boot_block->dentries[boot_block->dentry_count++], &den, sizeof(dentry_t));
+
+            /* set up file structure */
+            curr->files[i].ops = file_ops_map[den.file_type];
+            curr->files[i].inode = den.inode_num;
+            curr->files[i].file_pos = 0;
+            curr->files[i].present = 1;
+            return i;
+        }
+    }
+    return -1;
+}
+
+/**
+ * @brief delete an existing file from the file system
+ * 
+ * @param file_name the name of the file
+ * @return 0 if success, -1 if fail
+ */
+int32_t delete(const uint8_t *file_name) {
+    dentry_t den;
+    int32_t index, i, j;
+    if ((index = read_dentry_by_name(file_name, &den)) == -1) {     /* checks existence of file */
+        printf("File does not exist!\n");
+        return -1;
+    }
+
+    for (i = TERMINAL_COUNT; i < MAX_PROCESS; ++i) {                /* some processes are using this file */
+        for (j = 2; j < 8; ++j) {
+            if (pcbs[i]->files[j].present && pcbs[i]->files[j].inode == den.inode_num) {
+                printf("File is openning in other process(es)!\n");
+                return -1;
+            }
+        }
+    }
+
+    /* clears data from data blocks, and marks them as free */
+    inode_t *in = inode_blocks + den.inode_num;
+    for (i = 0; in->data_blocks[i] != 0 && i < boot_block->inode_count; ++i) {
+        memset(data_blocks[in->data_blocks[i]].data, 0, FS_BLOCK_SIZE);
+        data_block_bitmap[i] = 0;
+    }
+
+    /* clears dentries, and keep them consecutive */
+    memmove(boot_block->dentries + index,
+            boot_block->dentries + index + 1,
+            (boot_block->dentry_count - index - 1) * sizeof(dentry_t));
+    memset(boot_block->dentries + boot_block->dentry_count - 1, 0, sizeof(dentry_t));
+    --boot_block->dentry_count;
+    write_ata_sectors(5000, boot_block->inode_count + boot_block->data_block_count + 1, (const uint8_t *)boot_block);
+    return 0;
+}
