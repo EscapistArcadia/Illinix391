@@ -8,11 +8,11 @@ FEATURES
    * (Read-only) File System Driver
    * RTC Driver (virtualized/not virtualized)
 3. Checkpoint III
-   * execute/halt system calls for user programs
-   * open/close/read/write system calls for user programs to manipulate files
+   * ```execute/halt``` system calls for user programs
+   * ```open/close/read/write``` system calls for user programs to manipulate files
 4. Checkpoint IV
-   * getargs for user programs requiring arguments.
-   * vidmap for user programs requiring video memory
+   * ```getargs``` for user programs requiring arguments.
+   * ```vidmap``` for user programs requiring video memory
 5. Checkpoint V
    * multiple terminals: users can switch between 3 terminals
    * scheduling: processes on terminals can execute concurrently
