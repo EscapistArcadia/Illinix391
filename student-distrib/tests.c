@@ -110,14 +110,23 @@ int file_system_test() {
 	if ((ret = file_open((const uint8_t *)"verylargetextwithverylongname.txt")) != -1) {
 		return FAIL;	
 	}
-	/* should return 0, since the file exists */
-	if ((ret = file_open((const uint8_t *)"fish")) == -1) {
-		return FAIL;
-	}
+	// /* should return 0, since the file exists */
+	// if ((ret = file_open((const uint8_t *)"fish")) == -1) {
+	// 	return FAIL;
+	// }
 	
 	char content[65536];
+	// int size = file_read(ret, content, 65536);
+	// printf("%d %d\n", size, file_size(ret));			/* test file size inquery */
+	// terminal_write(0, (const uint8_t *)content, size);
+
+	if ((ret = file_open((const uint8_t *)"frame1.txt")) == -1) {
+		return FAIL;
+	}
 	int size = file_read(ret, content, 65536);
-	printf("%d %d\n", size, file_size(ret));			/* test file size inquery */
+	terminal_write(0, (const uint8_t *)content, size);
+	file_write(ret, "Escapist.Arcadia", 16);
+	size = file_read(ret, content, 65536);
 	terminal_write(0, (const uint8_t *)content, size);
 	return PASS;
 }

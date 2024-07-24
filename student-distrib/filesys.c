@@ -31,6 +31,9 @@ data_block_t *data_blocks;
 
 #define ATA_BOOT_BLOCK_SIZE     (16 * ATA_SECTOR_COUNT)
 
+uint8_t inode_bitmap[64];
+uint8_t data_block_bitmap[64];
+
 /**
  * @brief reads \p count of sectors starting at \p index to \p buf
  * the buffer size should be count * 512 (ATA_SECTOR_SIZE)
@@ -97,7 +100,7 @@ uint32_t write_ata_sectors(uint32_t index, uint32_t count, const uint8_t *buf) {
 
         for (i = 0; i < (ATA_SECTOR_SIZE >> 1); ++i, bytes += 2, buf += 2) {
             outw(*(uint16_t *)buf, ATA_DATA);
-            outb(ATA_MASTER_DRIVE, ATA_DRIVE_SELECT);
+            outb(ATA_MASTER_DRIVE, ATA_DRIVE_SELECT);           /* flush the cache */
             outb(ATA_CMD_FLUSH, ATA_STATUS);
             while (inb(ATA_STATUS) & ATA_FLAG_STATUS_BUSY);
         }
@@ -114,6 +117,17 @@ void file_system_init(uint32_t start) {
     boot_block = (boot_block_t *)start;         /* records the starting address */
     inode_blocks = (inode_t *)(boot_block + 1); /* skips the boot block */
     data_blocks = (data_block_t *)(boot_block) + boot_block->inode_count + 1;
+
+    uint32_t i, j;
+    for (i = 0; i < boot_block->dentry_count; ++i) {
+        if (boot_block->dentries[i].file_name[0] != 0) {        /* checks null-termination */
+            inode_bitmap[boot_block->dentries[i].inode_num] = 1;/* TODO: dynamic alloc for dynamic-sized bitmap */
+
+            for (j = 0; inode_blocks[boot_block->dentries[i].inode_num].data_blocks[j] && j < 64; ++j) {
+                data_block_bitmap[inode_blocks[boot_block->dentries[i].inode_num].data_blocks[j]] = 1;
+            }
+        }
+    }
 }
 
 /**
@@ -207,6 +221,52 @@ int32_t read_data(uint32_t inode, uint32_t offset, uint8_t *buf, uint32_t len) {
     }
 }
 
+uint32_t get_free_datablock() {
+    uint32_t db;
+    for (db = 1; db < boot_block->data_block_count; ++db) {
+        if (!data_block_bitmap[db]) {
+            return db;
+        }
+    }
+    return -1;
+}
+
+int32_t write_data(uint32_t inode, uint32_t offset, const uint8_t *buf, uint32_t len) {
+    if (!buf || !len || inode >= boot_block->inode_count) {
+        return -1;
+    }
+
+    inode_t *in = inode_blocks + inode;
+    if (offset > in->file_size) {                   /* largest = append */
+        return 0;
+    } else if (offset + len > in->file_size) {      /* detects the file size change */
+        in->file_size = offset + len;
+    }
+
+    uint32_t index = offset >> 12;                  /* offset / 4096 */
+    offset &= (FS_BLOCK_SIZE - 1);                  /* offset % 4096 */
+
+    uint32_t *block = in->data_blocks + index;      /* starting block */
+    uint32_t remain = FS_BLOCK_SIZE - offset;       /* remaining size of current block */
+
+    if (remain >= len) {
+        memcpy(data_blocks[*block].data + offset, buf, len);
+    } else {
+        const uint8_t *pos = buf + remain;          /* records the position */
+        memcpy(data_blocks[*(block++)].data + offset, buf, remain);
+
+        for (remain = len - remain, *block = get_free_datablock();
+             remain & (~(FS_BLOCK_SIZE - 1));
+             *(++block) = get_free_datablock(), remain -= FS_BLOCK_SIZE, pos += FS_BLOCK_SIZE) {
+            memcpy(data_blocks[*block].data, pos, FS_BLOCK_SIZE);
+        }
+        memcpy(data_blocks[*block].data, pos, remain);
+    }
+    /* TODO: find a way to write only necessary block(s) */
+    // write_ata_sectors(5000, boot_block->inode_count + boot_block->data_block_count + 1, (const uint8_t *)boot_block);
+    return len;
+}
+
 /**
  * @brief opens a file at \p path
  * 
@@ -253,7 +313,8 @@ int32_t file_read(int32_t fd, void *buf, uint32_t count) {
  * @return -1 TODO: make file system writable.
  */
 int32_t file_write(int32_t fd, const void *buf, uint32_t count) {
-    return -1;
+    pcb_t *curr = get_current_pcb();
+    return write_data(curr->files[fd].inode, curr->files[fd].file_pos, buf, count);
 }
 
 /**
