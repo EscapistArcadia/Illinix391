@@ -1,3 +1,30 @@
+FEATURES
+-----
+1. Checkpoint I
+   * IDT (interrupt descriptor table)
+   * Paging Directories/Table Entries
+2. Checkpoint II
+   * Terminal Driver
+   * (Read-only) File System Driver
+   * RTC Driver (virtualized/not virtualized)
+3. Checkpoint III
+   * execute/halt system calls for user programs
+   * open/close/read/write system calls for user programs to manipulate files
+4. Checkpoint IV
+   * getargs for user programs requiring arguments.
+   * vidmap for user programs requiring video memory
+5. Checkpoint V
+   * multiple terminals: users can switch between 3 terminals
+   * scheduling: processes on terminals can execute concurrently
+     (implementation: Round-Robin)
+6. Extra Features
+   * makes the provided read-only file system writable, permanent file system (Jul. 24th, 2024)
+   * signal support
+   * kernel-level malloc & user-level malloc
+   * sound card driver
+   * datetime api support
+   * extended cursor api support
+
 ACADEMIC INTEGRITY
 -----
 Please review the University of Illinois Student Code before starting,
