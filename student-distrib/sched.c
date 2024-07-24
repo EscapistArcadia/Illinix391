@@ -133,7 +133,7 @@ void initiate_shells() {
         :::"eax"
     );
     
-    pit_init(20);
+    pit_init(100);
     set_screen_coordinate(0, 0);
     
     asm volatile (

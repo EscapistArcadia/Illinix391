@@ -4,6 +4,107 @@ boot_block_t *boot_block;
 inode_t *inode_blocks;
 data_block_t *data_blocks;
 
+#define ATA_DATA                0x1F0
+#define ATA_SECTOR_COUNT        0x1F2
+#define ATA_LBA_LOW             0x1F3
+#define ATA_LBA_MID             0x1F4
+#define ATA_LBA_HIGH            0x1F5
+#define ATA_DRIVE_SELECT       0x1F6
+#define ATA_STATUS              0x1F7
+
+#define ATA_MASTER_DRIVE       0xA0
+#define ATA_SLAVE_DRIVE        0xB0
+
+#define ATA_FLAG_STATUS_ERROR   (1 << 0)
+#define ATA_FLAG_STATUS_INDEX   (1 << 1)
+#define ATA_FLAG_STATUS_DATA_REQUEST    (1 << 3)
+#define ATA_FLAG_STATUS_FAULT   (1 << 5)
+#define ATA_FLAG_STATUS_BUSY    (1 << 7)
+
+#define ATA_CMD_IDENTIFY        0xEC
+#define ATA_CMD_READ            0x20
+#define ATA_CMD_WRITE           0x30
+#define ATA_CMD_FLUSH           0xE7
+
+#define ATA_SECTOR_SIZE         512         /* ATA contains 512 * 0x0FFFFFFF bytes */
+#define ATA_SECTOR_BOUND        0x0FFFFFFF
+
+#define ATA_BOOT_BLOCK_SIZE     (16 * ATA_SECTOR_COUNT)
+
+/**
+ * @brief reads \p count of sectors starting at \p index to \p buf
+ * the buffer size should be count * 512 (ATA_SECTOR_SIZE)
+ * 
+ * @param index the starting index of the sector to read
+ * @param count the count of sectors to read
+ * @param buf the destination buffer
+ * @return count of bytes read
+ */
+uint32_t read_ata_sectors(uint32_t index, uint32_t count, uint8_t *buf) {
+    if (!buf || !count || index >= ATA_SECTOR_BOUND) {               /* checks illegal arguments */
+        return 0;
+    }
+
+    /* 
+     * ATA supports reading/writing multiple sectors, as mentioned in osdev.
+     * But it does not work as desired. The solution is to read 1 sectors
+     * successively.
+     */
+    uint32_t bytes = 0, status, i;
+    for (; count; ++index, --count) {
+        outb(0xE0 | ((index >> 24) & 0xF), ATA_DRIVE_SELECT);   /* tells drive and first 8 bits of sector index */
+        outb(1, ATA_SECTOR_COUNT);              /* 1 sector for multiple times */
+        outb((uint8_t)index, ATA_LBA_LOW);      /* tells remaining 24 bits of sector size */
+        outb((uint8_t)((index >> 8) & 0xFF), ATA_LBA_MID);
+        outb((uint8_t)((index >> 16) & 0xFF), ATA_LBA_HIGH);
+        outb(ATA_CMD_READ, ATA_STATUS);         /* finished setting arguments */
+
+        do {
+            status = inb(ATA_STATUS);           /* polling until ATA is ready */
+        } while ((status & ATA_FLAG_STATUS_BUSY) || !(status & ATA_FLAG_STATUS_DATA_REQUEST));
+
+        for (i = 0; i < (ATA_SECTOR_SIZE >> 1); ++i, bytes += 2, buf += 2) {
+            *(uint16_t *)buf = (uint16_t)inw(ATA_DATA);
+        }
+    }
+    return bytes;
+}
+
+/**
+ * @brief writes \p count of sectors starting at \p index from \p buf
+ * the buffer size should be count * 512 (ATA_SECTOR_SIZE)
+ * 
+ * @param index the starting index of the sector to write
+ * @param count the count of sectors to write
+ * @param buf the source buffer
+ * @return count of bytes written
+ */
+uint32_t write_ata_sectors(uint32_t index, uint32_t count, const uint8_t *buf) {
+    if (!buf || !count || index >= ATA_SECTOR_BOUND) {               /* checks illegal arguments */
+        return 0;
+    }
+
+    uint32_t bytes = 0, i;
+    for (; count; ++index, --count) {
+        outb(0xE0 | ((index >> 24) & 0xF), ATA_DRIVE_SELECT);   /* tells drive and first 8 bits of sector index */
+        outb(1, ATA_SECTOR_COUNT);              /* 1 sector for multiple times */
+        outb((uint8_t)index, ATA_LBA_LOW);      /* tells remaining 24 bits of sector size */
+        outb((uint8_t)((index >> 8) & 0xFF), ATA_LBA_MID);
+        outb((uint8_t)((index >> 16) & 0xFF), ATA_LBA_HIGH);
+        outb(ATA_CMD_WRITE, ATA_STATUS);        /* finished setting arguments */
+
+        while (!(inb(ATA_STATUS) & ATA_FLAG_STATUS_DATA_REQUEST));
+
+        for (i = 0; i < (ATA_SECTOR_SIZE >> 1); ++i, bytes += 2, buf += 2) {
+            outw(*(uint16_t *)buf, ATA_DATA);
+            outb(ATA_MASTER_DRIVE, ATA_DRIVE_SELECT);
+            outb(ATA_CMD_FLUSH, ATA_STATUS);
+            while (inb(ATA_STATUS) & ATA_FLAG_STATUS_BUSY);
+        }
+    }
+    return bytes;
+}
+
 /**
  * @brief initializes the file system
  * 
