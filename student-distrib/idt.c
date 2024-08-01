@@ -31,22 +31,6 @@ extern void rtc_int_wrapper();
 extern void pit_int_wrapper();
 extern void system_call_wrapper();
 
-void *syscall_entries[] = {
-    NULL,
-    halt,
-    execute,
-    read,
-    write,
-    open,
-    close,
-    getargs,
-    vidmap,
-    set_handler,
-    sigreturn,
-    create,
-    delete
-};
-
 uint8_t exception_occurred = 0;
 
 void exception_divide_by_zero() {
@@ -176,111 +160,6 @@ void system_call0() {
     printf("System call ^_^\n");
     exception_occurred = 1;
     halt(255);
-}
-
-/**
- * @brief the meaningless wrapper of wrappers of interrupt handlers
- * to records general-purposed registers and the flags as iterrupts
- * or system call fire
- */
-void mystery() {
-    asm volatile (
-        "keyboard_int_wrapper:\n"
-        "pushfl\n"
-        "pushal\n"
-        "call keyboard_handler\n"
-        "popal\n"
-        "popfl\n"
-        "iret\n"
-        
-        "rtc_int_wrapper:\n"
-        "pushfl\n"
-        "pushal\n"
-        "call rtc_handler\n"
-    // test rtc interrupt, not used
-    // );
-    // outb(0x0C, 0x70);
-    // inb(0x71);
-    // asm volatile (
-    //     "call test_interrupts\n"
-    //     "pushl $8\n"
-    //     "call send_eoi\n"
-    //     "add $4, %%esp\n"
-        "popal\n"
-        "popfl\n"
-        "iret\n"
-
-        "pit_int_wrapper:\n"
-        "pushfl\n"
-        "pushal\n"
-        "call pit_handler\n"
-        "popal\n"
-        "popfl\n"
-        "iret\n"
-        :
-        :
-        : "%al", "memory"
-    );
-
-    /**
-     * @brief the handler of system call (IDT entry 0x80)
-     * 
-     * @param eax the system call number/index
-     * @param ebx first parameter
-     * @param ecx second parameter
-     * @param edx third parameter
-     * @return 0 if success, 1 if fail
-     */
-    asm volatile (
-        "bad_sysc_num:\n"
-        "movl $-1, %%eax\n"
-        "jmp syscall_end\n"
-        
-        "system_call_wrapper:\n"
-        "pushw %%fs\n"      /* records the context */
-        "pushw $0\n"
-        "pushw %%es\n"
-        "pushw $0\n"
-        "pushw %%ds\n"
-        "pushw $0\n"
-        "pushl %%eax\n"
-        "pushl %%ebp\n"
-        "pushl %%edi\n"
-        "pushl %%esi\n"
-        "pushl %%edx\n"
-        "pushl %%ecx\n"
-        "pushl %%ebx\n"
-        
-        "cmpl $1, %%eax\n"  /* checks the interrupt number */
-        "jb bad_sysc_num\n"
-        "cmpl $12, %%eax\n"
-        "ja bad_sysc_num\n"
-
-        "pushw $0x18\n"     /* movw $0x18, %ds */
-        "popw %%ds\n"       /* %ds cannot be directly assigned by immediate */
-
-        "shll $2, %%eax\n"  /* %eax *= 4*/
-        "addl %0, %%eax\n"  
-        "call *(%%eax)\n"   /* %eax = (syscall_entries + %eax * 4)*/
-
-        "syscall_end:\n"
-        "popl %%ebx\n"      /* restores the context */
-        "popl %%ecx\n"
-        "popl %%edx\n"
-        "popl %%esi\n"
-        "popl %%edi\n"
-        "popl %%ebp\n"
-        "addl $6, %%esp\n"  /* ignores %eax */
-        "popw %%ds\n"
-        "addl $2, %%esp\n"
-        "popw %%es\n"
-        "addl $2, %%esp\n"
-        "popw %%fs\n"
-        "iret"
-        :
-        : "g"(syscall_entries)
-        : "eax", "ebx", "ecx", "edx", "esi", "edi"
-    );
 }
 
 /**

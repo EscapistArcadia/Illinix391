@@ -1,6 +1,8 @@
 #ifndef _SYSCALL_H
 #define _SYSCALL_H
 
+#ifndef ASM
+
 #include "lib.h"
 
 #define EXECUTABLE_MAGIC        0x464C457F          /* the first four bytes of executable files */
@@ -23,7 +25,7 @@ extern pcb_t *pcbs[MAX_PROCESS];
  * @param status the status code for the kernel
  * @return 0 if success, -1 if fail
  */
-int32_t halt(uint8_t status);
+extern int32_t halt(uint8_t status);
 
 /**
  * @brief runs a user program with parameter(s) specified in \p command
@@ -31,7 +33,7 @@ int32_t halt(uint8_t status);
  * @param command user-input command
  * @return 0 if success, -1 if fail
  */
-int32_t execute(const uint8_t *command);
+extern int32_t execute(const uint8_t *command);
 
 /**
  * @brief continues to read a file from the position last time, or
@@ -42,7 +44,7 @@ int32_t execute(const uint8_t *command);
  * @param count the buffer's capacity
  * @return int32_t count of bytes read
  */
-int32_t read(int32_t fd, void* buf, int32_t count);
+extern int32_t read(int32_t fd, void* buf, int32_t count);
 
 /**
  * @brief continues to write a file from the position last time, or
@@ -53,7 +55,7 @@ int32_t read(int32_t fd, void* buf, int32_t count);
  * @param count count of bytes intended to write
  * @return count of bytes wrote
  */
-int32_t write(int32_t fd, const void* buf, int32_t count);
+extern int32_t write(int32_t fd, const void* buf, int32_t count);
 
 /**
  * @brief opens a file from the file system
@@ -61,7 +63,7 @@ int32_t write(int32_t fd, const void* buf, int32_t count);
  * @param file_name name of the file
  * @return int32_t the file descriptor to the process
  */
-int32_t open(const uint8_t* file_name);
+extern int32_t open(const uint8_t* file_name);
 
 /**
  * @brief closes the opened file and releases the descriptor
@@ -69,7 +71,7 @@ int32_t open(const uint8_t* file_name);
  * @param fd the file descriptor
  * @return 0 if success, -1 if fail
  */
-int32_t close(int32_t fd);
+extern int32_t close(int32_t fd);
 
 /**
  * @brief gets the arguments user passed to the program as the
@@ -79,7 +81,7 @@ int32_t close(int32_t fd);
  * @param nbytes the capacity of the buffer
  * @return number of bytes read
  */
-int32_t getargs(uint8_t* buf, int32_t count);
+extern int32_t getargs(uint8_t* buf, int32_t count);
 
 /**
  * @brief requested the kernel for writing content on the video
@@ -89,11 +91,11 @@ int32_t getargs(uint8_t* buf, int32_t count);
  * entry
  * @return 0 if success, -1 if fails 
  */
-int32_t vidmap(uint8_t** start);
+extern int32_t vidmap(uint8_t** start);
 
-int32_t set_handler(int32_t signum, void* handler_address);
+extern int32_t set_handler(int32_t signum, void* handler_address);
 
-int32_t sigreturn(void);
+extern int32_t sigreturn(void);
 
 /**
  * @brief requested to create a new file with specified \p file_name
@@ -101,7 +103,7 @@ int32_t sigreturn(void);
  * @param file_name the name of the file
  * @return descriptor of the file for the process
  */
-int32_t create(const uint8_t *file_name);
+extern int32_t create(const uint8_t *file_name);
 
 /**
  * @brief delete an existing file from the file system
@@ -109,6 +111,8 @@ int32_t create(const uint8_t *file_name);
  * @param file_name the name of the file
  * @return 0 if success, -1 if fail
  */
-int32_t delete(const uint8_t *file_name);
+extern int32_t delete(const uint8_t *file_name);
+
+#endif
 
 #endif
