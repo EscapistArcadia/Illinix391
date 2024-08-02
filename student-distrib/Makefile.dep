@@ -1,0 +1,21 @@
+boot.o: boot.S multiboot.h x86_desc.h types.h
+linkage.o: linkage.S syscall.h
+x86_desc.o: x86_desc.S x86_desc.h types.h
+filesys.o: filesys.c filesys.h lib.h types.h x86_desc.h
+i8259.o: i8259.c i8259.h types.h lib.h x86_desc.h
+idt.o: idt.c idt.h lib.h types.h x86_desc.h keyboard.h rtc.h syscall.h
+kernel.o: kernel.c multiboot.h types.h x86_desc.h lib.h idt.h paging.h \
+  filesys.h sched.h debug.h malloc.h tests.h i8259.h keyboard.h rtc.h
+keyboard.o: keyboard.c keyboard.h lib.h types.h x86_desc.h syscall.h \
+  i8259.h
+lib.o: lib.c lib.h types.h x86_desc.h paging.h syscall.h
+malloc.o: malloc.c malloc.h lib.h types.h x86_desc.h paging.h
+paging.o: paging.c paging.h lib.h types.h x86_desc.h syscall.h
+rtc.o: rtc.c rtc.h lib.h types.h x86_desc.h i8259.h syscall.h
+sched.o: sched.c sched.h lib.h types.h x86_desc.h filesys.h i8259.h \
+  syscall.h paging.h term.h
+syscall.o: syscall.c syscall.h lib.h types.h x86_desc.h paging.h term.h \
+  rtc.h filesys.h
+term.o: term.c term.h lib.h types.h x86_desc.h
+tests.o: tests.c tests.h x86_desc.h types.h lib.h term.h rtc.h filesys.h \
+  syscall.h malloc.h

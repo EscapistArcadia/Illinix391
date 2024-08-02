@@ -5,6 +5,7 @@
 #include "rtc.h"
 #include "filesys.h"
 #include "syscall.h"
+#include "malloc.h"
 
 #define PASS 1
 #define FAIL 0
@@ -163,6 +164,8 @@ void launch_tests(){
 	// TEST_OUTPUT("terminal_test", terminal_test());
 	
 	// execute((const uint8_t *)"               shell    ");
+
+	volatile void *ptr = kmalloc(65536);
 
 	// launch your tests here
 }

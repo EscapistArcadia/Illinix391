@@ -10,6 +10,7 @@
 #include "filesys.h"
 #include "sched.h"
 #include "debug.h"
+#include "malloc.h"
 #include "tests.h"
 
 #include "i8259.h"
@@ -146,6 +147,7 @@ void entry(unsigned long magic, unsigned long addr) {
 
     /* Init the interrupt */
     paging_init();
+    kmalloc_init();
     idt_init();
     i8259_init();
 
@@ -163,7 +165,7 @@ void entry(unsigned long magic, unsigned long addr) {
     sti();
     
     clear();
-    initiate_shells();
+    // initiate_shells();
 
 #ifdef RUN_TESTS
     /* Run tests */

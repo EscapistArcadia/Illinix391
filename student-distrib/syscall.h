@@ -113,6 +113,31 @@ extern int32_t create(const uint8_t *file_name);
  */
 extern int32_t delete(const uint8_t *file_name);
 
+/**
+ * @brief allocates a block of runtime memory with size \p size
+ * 
+ * @param size size of memory in byte
+ * @return allocated memory
+ */
+extern void *malloc(uint32_t size);
+
+/**
+ * @brief enlarges the allocated memory starting at \p src with new
+ * size \p size
+ * 
+ * @param src starting address of memory
+ * @param size new size of memory in byte
+ * @return allocated memory
+ */
+extern void *realloc(void *src, uint32_t size);
+
+/**
+ * @brief releases the ownership of the memory starting at \p src
+ * 
+ * @param src starting address of memory
+ */
+extern void free(void *src);
+
 #endif
 
 #endif
